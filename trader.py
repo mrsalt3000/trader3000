@@ -1,10 +1,10 @@
+from dotenv import load_dotenv
 import os
-root = os.getcwd()
+
+load_dotenv()  # загружает .env файл
 
 from libs.tinkoff_trading import TinkoffTrading
 from tinkoff.invest import Client
-with open(f"{root}/creds/tinvest.txt","r") as f:
-    TOKEN = f.read()
 from libs.data_management import DataManager
 #from libs.training_manager import TrainingManager
 import time
@@ -32,8 +32,7 @@ class Trader():
         ,aquisition_hold_days = 14
     ):
         assert mode in ["test","prod"]
-        with open(f"{root}/creds/tinvest.txt","r") as f:
-            TOKEN = f.read()
+        TOKEN = os.getenv("TINVEST_TOKEN")
         self.quant_cost = quant_cost
         self.path_agents = path_agents
         self.trading_manager = TinkoffTrading(TOKEN,Client,{"QUANTUM_PRICE":quant_cost})

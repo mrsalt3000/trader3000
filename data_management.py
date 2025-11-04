@@ -1,5 +1,7 @@
 import os
-root = os.getcwd()
+from dotenv import load_dotenv
+
+load_dotenv()  # Загружаем переменные окружения из .env
 import random
 import pandas as pd
 import sqlite3
@@ -24,7 +26,7 @@ class DataManager():
         self.SQL_MODE = sql_mode
         self.root = os.getcwd()
         self.trading_manager = trading_manager
-        self.psql_main_creds = self.get_psql_main_creds()
+        self.psql_main_creds = os.getenv("DATABASE_URL")
         if trading_manager:
             from tinkoff.invest import Client
             from libs.tinkoff_trading import TinkoffTrading
@@ -80,16 +82,6 @@ class DataManager():
             data = pd.concat([data,info])
         return pd.DataFrame(data).reset_index(drop=True)
         
-    # def training_datasets_download(
-    #         self
-    #         ,tickers
-    #         ,time_step_resolutions
-    #         ,start_date=datetime.datetime(2019,1,1)
-    #         ,finish_date=None
-    #         ,save_mode = "replace"
-    #     ):
-    #     print("МЕТОД training_datasets_download ПЕРЕНЕСЕН В tinkoff_trading.py")
-    
     @with_connection  
     def training_datasets_download(
         self
@@ -247,12 +239,6 @@ class DataManager():
         FROM {table_name}
         """
         return sql
-    #def get_datasets_multy_tickers(self,tickers,resolution):
-    #    datasets_by_ticker = []
-    #    for ticker in tickers:
-    #        datasets_by_ticker.append(self.get_datasets(ticker,resolution))
-    #    for _set in datasets_by_ticker:
-            
 
     @with_connection  
     def get_datasets(self,con,ticker,resolution,mode = "test",normalized = False):
@@ -413,9 +399,6 @@ class DataManager():
         
     def get_transactions(
         self
-        #,mode
-        #,algo_id
-        #,ticker
     ):
         sql = f"""
             SELECT
@@ -528,9 +511,6 @@ class DataManager():
         
         ds_train_y_raw = datasets["train_cost_history"]["close"]
         ds_val_y_raw = datasets["validation_cost_history"]["close"]
-        
-        #ds_train_x_raw["close"] = ds_train_y_raw
-        #ds_val_x_raw["close"] = ds_val_y_raw
         
         ds_train_x = ds_train_x_raw.values
         ds_val_x = ds_val_x_raw.values
