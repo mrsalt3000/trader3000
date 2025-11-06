@@ -3,17 +3,15 @@ import os
 
 load_dotenv()  # загружает .env файл
 
-from libs.tinkoff_trading import TinkoffTrading
+from tinkoff_trading import TinkoffTrading
 from tinkoff.invest import Client
-from libs.data_management import DataManager
-#from libs.training_manager import TrainingManager
+from data_management import DataManager
 import time
 from IPython.display import clear_output
 import pickle
 import pandas as pd
 import datetime
 from matplotlib import pyplot as plt
-import sqlite3
 from tinkoff import invest
 from decimal import Decimal
 

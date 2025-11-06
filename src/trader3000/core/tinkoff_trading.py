@@ -5,7 +5,6 @@ import math
 from tinkoff.invest import Client
 from tinkoff.invest import CandleInterval
 import pandas as pd
-import sqlite3
 import datetime
 from decimal import Decimal
 

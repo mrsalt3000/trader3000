@@ -6,7 +6,6 @@ import datetime
 import talib
 from talib.abstract import *
 from talib import MA_Type
-#from libs.data_management import DataManager
 
 import warnings
 

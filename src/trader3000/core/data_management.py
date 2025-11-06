@@ -1,9 +1,10 @@
 import os
-root = os.getcwd()
+from dotenv import load_dotenv
+
+load_dotenv()  # Загружаем переменные окружения из .env
 import random
 import pandas as pd
-import sqlite3
-from libs.indicators_calculator import IndicatorsCalculator
+from .indicators_calculator import IndicatorsCalculator
 import shutil
 import sqlalchemy
 from sqlalchemy import text
@@ -18,24 +19,19 @@ class DataManager():
     def __init__(
         self,
         trading_manager = None,
-        sql_mode = "postgres"#"sqlite"#
     ):
         self.CANDLES_SART_DATE  = datetime.datetime(2019,1,1) #2019
-        self.SQL_MODE = sql_mode
         self.root = os.getcwd()
         self.trading_manager = trading_manager
-        self.psql_main_creds = self.get_psql_main_creds()
+        self.psql_main_creds = os.getenv("DATABASE_URL")
         if trading_manager:
             from tinkoff.invest import Client
-            from libs.tinkoff_trading import TinkoffTrading
+            from .tinkoff_trading import TinkoffTrading
     def with_connection(func):
         """Декоратор для управления подключением к БД."""
         def wrapper(self, *args, **kwargs):
-            if self.SQL_MODE == "postgres":
-                engine = sqlalchemy.create_engine(self.psql_main_creds)
-                con = engine.connect()
-            elif self.SQL_MODE == "sqlite":
-                con = sqlite3.connect(f"{self.root}/db/main.db")
+            engine = sqlalchemy.create_engine(self.psql_main_creds)
+            con = engine.connect()
             try:
                 # Передаём подключение в метод как именованный аргумент
 
@@ -49,12 +45,6 @@ class DataManager():
                 con.close()  # Всегда закрываем подключение
         return wrapper
 
-    def get_psql_main_creds(self):
-        root = os.getcwd()
-        with open(f"{root}/creds/psql_main.txt","r") as f:
-            psql_main_creds = f.read()
-        return psql_main_creds
-        
     def get_sql_table_info(self,table_name):
         return f"""
         SELECT
@@ -80,16 +70,6 @@ class DataManager():
             data = pd.concat([data,info])
         return pd.DataFrame(data).reset_index(drop=True)
         
-    # def training_datasets_download(
-    #         self
-    #         ,tickers
-    #         ,time_step_resolutions
-    #         ,start_date=datetime.datetime(2019,1,1)
-    #         ,finish_date=None
-    #         ,save_mode = "replace"
-    #     ):
-    #     print("МЕТОД training_datasets_download ПЕРЕНЕСЕН В tinkoff_trading.py")
-    
     @with_connection  
     def training_datasets_download(
         self
@@ -148,22 +128,13 @@ class DataManager():
             
     @with_connection          
     def get_all_candles_table_names(self, con):
-        if self.SQL_MODE == "postgres":
-            sql = """
-                    SELECT
-                        table_name AS name
-                    FROM information_schema.tables
-                    WHERE table_type = 'BASE TABLE'
-                        AND table_schema = 'candles'
-                """
-        elif self.SQL_MODE == "sqlite":
-            sql = """
-                    SELECT
-                        name
-                    FROM information_schema.tables
-                    WHERE table_type = 'BASE TABLE'
-                        AND table_schema = 'candles'
-                """
+        sql = """
+                SELECT
+                    table_name AS name
+                FROM information_schema.tables
+                WHERE table_type = 'BASE TABLE'
+                    AND table_schema = 'candles'
+            """
         data = pd.read_sql(sql, con)["name"].values
         return data
         
@@ -247,12 +218,6 @@ class DataManager():
         FROM {table_name}
         """
         return sql
-    #def get_datasets_multy_tickers(self,tickers,resolution):
-    #    datasets_by_ticker = []
-    #    for ticker in tickers:
-    #        datasets_by_ticker.append(self.get_datasets(ticker,resolution))
-    #    for _set in datasets_by_ticker:
-            
 
     @with_connection  
     def get_datasets(self,con,ticker,resolution,mode = "test",normalized = False):
@@ -413,9 +378,6 @@ class DataManager():
         
     def get_transactions(
         self
-        #,mode
-        #,algo_id
-        #,ticker
     ):
         sql = f"""
             SELECT
@@ -528,9 +490,6 @@ class DataManager():
         
         ds_train_y_raw = datasets["train_cost_history"]["close"]
         ds_val_y_raw = datasets["validation_cost_history"]["close"]
-        
-        #ds_train_x_raw["close"] = ds_train_y_raw
-        #ds_val_x_raw["close"] = ds_val_y_raw
         
         ds_train_x = ds_train_x_raw.values
         ds_val_x = ds_val_x_raw.values
