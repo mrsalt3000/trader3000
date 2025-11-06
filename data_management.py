@@ -20,10 +20,8 @@ class DataManager():
     def __init__(
         self,
         trading_manager = None,
-        sql_mode = "postgres"#"sqlite"#
     ):
         self.CANDLES_SART_DATE  = datetime.datetime(2019,1,1) #2019
-        self.SQL_MODE = sql_mode
         self.root = os.getcwd()
         self.trading_manager = trading_manager
         self.psql_main_creds = os.getenv("DATABASE_URL")
@@ -33,11 +31,8 @@ class DataManager():
     def with_connection(func):
         """Декоратор для управления подключением к БД."""
         def wrapper(self, *args, **kwargs):
-            if self.SQL_MODE == "postgres":
-                engine = sqlalchemy.create_engine(self.psql_main_creds)
-                con = engine.connect()
-            elif self.SQL_MODE == "sqlite":
-                con = sqlite3.connect(f"{self.root}/db/main.db")
+            engine = sqlalchemy.create_engine(self.psql_main_creds)
+            con = engine.connect()
             try:
                 # Передаём подключение в метод как именованный аргумент
 
@@ -51,12 +46,6 @@ class DataManager():
                 con.close()  # Всегда закрываем подключение
         return wrapper
 
-    def get_psql_main_creds(self):
-        root = os.getcwd()
-        with open(f"{root}/creds/psql_main.txt","r") as f:
-            psql_main_creds = f.read()
-        return psql_main_creds
-        
     def get_sql_table_info(self,table_name):
         return f"""
         SELECT
@@ -140,22 +129,13 @@ class DataManager():
             
     @with_connection          
     def get_all_candles_table_names(self, con):
-        if self.SQL_MODE == "postgres":
-            sql = """
-                    SELECT
-                        table_name AS name
-                    FROM information_schema.tables
-                    WHERE table_type = 'BASE TABLE'
-                        AND table_schema = 'candles'
-                """
-        elif self.SQL_MODE == "sqlite":
-            sql = """
-                    SELECT
-                        name
-                    FROM information_schema.tables
-                    WHERE table_type = 'BASE TABLE'
-                        AND table_schema = 'candles'
-                """
+        sql = """
+                SELECT
+                    table_name AS name
+                FROM information_schema.tables
+                WHERE table_type = 'BASE TABLE'
+                    AND table_schema = 'candles'
+            """
         data = pd.read_sql(sql, con)["name"].values
         return data
         
