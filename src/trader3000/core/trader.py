@@ -3,15 +3,13 @@ import os
 
 load_dotenv()  # загружает .env файл
 
-from tinkoff_trading import TinkoffTrading
+from .tinkoff_trading import TinkoffTrading
 from tinkoff.invest import Client
-from data_management import DataManager
+from .data_management import DataManager
 import time
-from IPython.display import clear_output
 import pickle
 import pandas as pd
 import datetime
-from matplotlib import pyplot as plt
 from tinkoff import invest
 from decimal import Decimal
 
@@ -138,14 +136,12 @@ class Trader():
         return {k:v for k,v in list(a.items())+list(b.items())}
 
     def watch_buyer(self):
-        clear_output()
         while True:
             if datetime.datetime.now().date() > self.date_updated_schedules:
                 self.data_manager.update_schedules()
             self.data_manager.download_candles_delta([ticker.upper() for ticker in self.tickers_models.keys()])
             self.data_manager.recalculate_indicators()
             self.post_sell_rancid_orders(aquisition_hold_days=self.aquisition_hold_days)
-            clear_output()
             today = datetime.datetime.now().date()
             if (datetime.datetime.now().date() - self.date_agents_loaded).days > 0:
                 self.tickers_models = self.get_tickers_models()
@@ -182,12 +178,6 @@ class Trader():
                             ) : round(prediction[t]/last_candle_value,2)
                             for t in prediction.keys()
                         }
-                        #return prediction_processed
-                        # #plot preduictions
-                        # figure = plt.figure(figsize=(20, 3))
-                        # plt.xticks(rotation=45)
-                        # plt.plot(prediction_processed.keys(),prediction_processed.values())
-                        # plt.show()
     
                         #get raw buy estimations
                         deals=[]

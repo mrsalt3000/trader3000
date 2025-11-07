@@ -3,8 +3,7 @@ services:
     image: mrsalt3000/trader3000:latest
     volumes:
       - ../src:/app
-      #- ../src/trader3000/updating_routine/main.py:/app/updating_routine/main.py
-    command: sh -c "python -m trader3000.updating_routine.main.py" 
+    command: sh -c "python -m trader3000.updating_routine.main" 
     depends_on:
       postgres:
         condition: service_healthy
