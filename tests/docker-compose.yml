@@ -1,0 +1,9 @@
+services:
+  static_analysis:
+    image: python:3.10-slim
+    volumes:
+      - ../:/app
+    working_dir: /app
+    # Указываем наш новый скрипт как точку входа
+    entrypoint: ["/app/tests/static/entrypoint.sh"]
+    # Команда, переданная через 'run', будет передана в entrypoint

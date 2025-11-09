@@ -1,7 +1,4 @@
-from .core import DataManager
-from .core import IndicatorsCalculator
-from .core import TinkoffTrading
-from .core import Trader
+from .core import DataManager, IndicatorsCalculator, TinkoffTrading, Trader
 
 __all__ = [
     "DataManager",
