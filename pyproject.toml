@@ -5,17 +5,6 @@ line-length = 79
 profile = "black"
 line_length = 79
 
-[tool.flake8]
-max-line-length = 79
-extend-ignore = "E203"
-exclude = [
-    ".git",
-    "__pycache__",
-    "docs",
-    "build",
-    "dist",
-]
-
 [tool.mypy]
 python_version = "3.12"
 pretty = true

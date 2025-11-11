@@ -1,12 +1,9 @@
-import os
-
-root = os.getcwd()
 import datetime
 import math
-import time
 import uuid
 from datetime import timedelta
 from decimal import Decimal
+from typing import Any, Dict, List, Optional, Tuple, TypedDict, cast
 
 import pandas as pd
 from tinkoff import invest
@@ -14,14 +11,28 @@ from tinkoff.invest import (
     CandleInterval,
     Client,
     OrderDirection,
-    OrderExecutionReportStatus,
     OrderType,
     PostOrderResponse,
-    StopOrderDirection,
-    StopOrderExpirationType,
-    StopOrderType,
 )
-from tinkoff.invest.services import InstrumentsService
+from tinkoff.invest.schemas import Quotation
+
+
+class Transaction(TypedDict):
+    order_id: str
+    order_request_id: str
+    figi: str
+    ticker: str
+    execution_report_status: str
+    lots_requested: int
+    lots_executed: int
+    initial_order_price: float
+    executed_order_price: float
+    total_order_amount: float
+    initial_commission: float
+    initial_security_price: float
+    executed_commission: float
+    direction: str  # можно конкретизировать Enum типа OrderDirection.name
+    order_type: str  # можно конкретизировать Enum типа OrderType.name
 
 
 class TinkoffTrading:
@@ -33,7 +44,6 @@ class TinkoffTrading:
         self.DEFAULT_STOP_ORDER_EXPIRE_DURATION = timedelta(hours=1)
         self.account_id = self.get_account_name()[0]
         self.account_name = self.get_account_name()[1]
-        self.CONN_STRING = "db/main.db"
         self.BUY_INCREASE = 1.005
         self.QUANTUM_PRICE = (
             params.get("QUANTUM_PRICE")
@@ -44,7 +54,7 @@ class TinkoffTrading:
         print("account_name:", self.account_name)
         # self.EXPIRATION_TYPE = StopOrderExpirationType.STOP_ORDER_EXPIRATION_TYPE_GOOD_TILL_DATE
 
-    def get_account_name(self):
+    def get_account_name(self) -> Tuple[str, str]:
         with self.client(self.token) as client:
             responce = client.users.get_accounts()
         return responce.accounts[0].id, responce.accounts[0].name
@@ -64,16 +74,18 @@ class TinkoffTrading:
             "ticker"
         ]
 
-    def get_figi_by_ticker(self, ticker: str) -> str:
+    def get_figi_by_ticker(self, ticker: str) -> Optional[str]:
         data = list(
             filter(lambda x: x["ticker"] == ticker.upper(), self.tickers)
         )
         if data:
             return data[0]["figi"]
+        else:
+            return None
 
-    def get_all_stocks(self) -> list:
+    def get_all_stocks(self) -> List:
         with self.client(self.token) as client:
-            instruments = []
+            pass
 
             def get_instruments(raw, type):
                 instruments = [
@@ -149,10 +161,11 @@ class TinkoffTrading:
     def get_market_trading_history(
         self,
         ticker: str,
-        start_date,
-        finish_date=None,
+        start_date: datetime.datetime,
+        finish_date: Optional[datetime.datetime] = None,
         time_step_resolution: str = "day",
-    ):
+    ) -> pd.DataFrame:
+
         start_date = start_date.replace(tzinfo=datetime.timezone.utc)
         if time_step_resolution == "hour":
             interval = CandleInterval.CANDLE_INTERVAL_HOUR
@@ -189,10 +202,10 @@ class TinkoffTrading:
 
             return pd.DataFrame.from_dict(history)
 
-    def quotation_to_float(self, inp) -> float:
+    def quotation_to_float(self, inp: Quotation) -> float:
         return inp.units + (inp.nano / 10 ** len(str(inp.nano)))
 
-    def get_portfolio(self):
+    def get_portfolio(self) -> Dict[str, Any]:
         with self.client(self.token) as client:
             portfolio_raw = client.operations.get_portfolio(
                 account_id=self.account_id
@@ -224,12 +237,14 @@ class TinkoffTrading:
         }
         return portfolio
 
-    def get_lot_quantity(self, ticker):
+    def get_lot_quantity(self, ticker: str) -> int:
         return list(
             filter(lambda x: x["ticker"] == ticker.upper(), self.tickers)
         )[0]["lot"]
 
-    def quantum_buy(self, ticker, price, n_quants=1):
+    def quantum_buy(
+        self, ticker: str, price: float, n_quants: int = 1
+    ) -> Transaction:
 
         last_price = self.get_last_price(ticker)
         lot_quantity = self.get_lot_quantity(ticker)
@@ -268,6 +283,11 @@ class TinkoffTrading:
         )
         print()
 
+        transaction: Transaction
+
+        if figi is None:
+            raise RuntimeError("figi не должен быть None")
+
         if lots_to_buy > 0 and is_enough_money:
             with self.client(self.token) as client:
                 post_order_response: PostOrderResponse = (
@@ -282,7 +302,7 @@ class TinkoffTrading:
                     )
                 )
 
-            status = post_order_response.execution_report_status
+            post_order_response.execution_report_status
             transaction = {
                 "order_id": post_order_response.order_id,
                 "order_request_id": post_order_response.order_request_id,
@@ -323,7 +343,7 @@ class TinkoffTrading:
                 "order_request_id": "",
                 "figi": figi,
                 "ticker": ticker,
-                "execution_report_status": "Not enough money, skipped",
+                "execution_report_status": skip_reason,
                 "lots_requested": lots_to_buy * n_quants,
                 "lots_executed": 0,
                 "initial_order_price": self.quotation_to_float(
@@ -337,21 +357,24 @@ class TinkoffTrading:
                 "direction": OrderDirection.ORDER_DIRECTION_BUY,
                 "order_type": OrderType.ORDER_TYPE_LIMIT,
             }
-        return transaction
+        return cast(Transaction, transaction)
 
-    def get_trading_schedules(self, from_, to):
+    def get_trading_schedules(
+        self, from_: datetime.datetime, to: datetime.datetime
+    ) -> Any:
         with self.client(self.token) as client:
             schedules_raw = client.instruments.trading_schedules(
                 from_=from_, to=to
             ).exchanges
         return schedules_raw
 
-    def get_ticker_info(self, ticker):
+    def get_ticker_info(self, ticker: str) -> Optional[Dict[str, Any]]:
         data = list(
             filter(lambda x: x["ticker"] == ticker.upper(), self.tickers)
         )
         if data:
             return data[0]
+        return None
 
     def quantum_sell(self, figi, quantity):
         with self.client(self.token) as client:
@@ -367,7 +390,7 @@ class TinkoffTrading:
         ) + self.quotation_to_float(resp.initial_commission)
         return sell_price_with_commission
 
-    def float_to_quotation(self, number):
+    def float_to_quotation(self, number: float) -> Quotation:
         return invest.utils.decimal_to_quotation(round(Decimal(number), 2))
 
     def get_order_status(self, order_id: str):
@@ -443,39 +466,3 @@ class TinkoffTrading:
             return blocked_lots
         else:
             return 0
-
-    def training_datasets_download(
-        self,
-        tickers,
-        time_step_resolutions,
-        start_date=datetime.datetime(2019, 1, 1),
-        finish_date=None,
-        save_mode="replace",
-    ):
-        for ticker in tickers:
-            print(ticker)
-            if "@" not in ticker and "-" not in ticker:
-                for time_step_resolution in time_step_resolutions:
-                    data = self.get_market_trading_history(
-                        ticker=ticker,
-                        start_date=start_date,
-                        finish_date=finish_date,
-                        time_step_resolution=time_step_resolution,
-                    )
-                    if type(data) != type(None):
-                        if len(data) > 0:
-                            print(len(data), "rows downloaded")
-                            with sqlite3.connect(self.CONN_STRING) as con:
-                                table_name = f"candles_{ticker.lower()}_{time_step_resolution}"
-                                data.to_sql(
-                                    con=con,
-                                    name=table_name,
-                                    if_exists=save_mode,
-                                    index=False,
-                                )
-                            if (len(tickers) + len(time_step_resolutions)) > 2:
-                                time.sleep(60)
-                    else:
-                        self.del_ticker_from_scope(ticker.upper())
-                        self.drop_tables_by_ticker(ticker.lower())
-        print("data loaded")

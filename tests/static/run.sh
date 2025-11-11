@@ -8,7 +8,11 @@ cd "$(dirname "$0")/../../"
 ARG1=${1%$'\r'}
 
 if [ "$ARG1" == "fix" ]; then
-  echo "Running formatters..."
+  echo "Running autoflake (surgeon)..."
+  # Удаляем неиспользуемые импорты и переменные
+  autoflake --in-place --remove-all-unused-imports --remove-unused-variables --recursive src/
+
+  echo "Running formatters (black, isort)..."
   black src/
   isort src/
   echo "Formatting complete."
@@ -25,4 +29,3 @@ else
   echo "Running mypy..."
   mypy src/
 fi
-

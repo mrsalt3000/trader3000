@@ -1,29 +1,15 @@
-import os
-import random
-from itertools import chain
-
-import numpy as np
-import pandas as pd
-from sklearn import preprocessing
-
-pd.set_option("display.max_columns", None)
-
-
 import datetime
-import pickle
+import os
+import time
 
 from tinkoff.invest import Client
 
+from ..core.data_management import DataManager
 from ..core.tinkoff_trading import TinkoffTrading
 
 TOKEN = os.getenv("TINVEST_TOKEN")
 trading_manager = TinkoffTrading(TOKEN, Client)
-from ..core.data_management import DataManager
-
 data_manager = DataManager(trading_manager)
-
-
-import time
 
 
 def run_main_update():

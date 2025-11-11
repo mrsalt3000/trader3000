@@ -1,21 +1,43 @@
-import os
-
-from dotenv import load_dotenv
-
-load_dotenv()  # Загружаем переменные окружения из .env
 import datetime
 import os
 import random
 import shutil
 import time
 from itertools import chain
+from typing import Callable, ParamSpec, TypeVar, cast
 
 import numpy as np
 import pandas as pd
 import sqlalchemy
+from dotenv import load_dotenv
 from sqlalchemy import text
 
 from .indicators_calculator import IndicatorsCalculator
+
+P = ParamSpec("P")
+R = TypeVar("R")
+T = TypeVar("T", bound="DataManager")
+
+
+def with_connection(func: Callable[P, R]) -> Callable[P, R]:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        self = cast(DataManager, args[0])
+        engine = sqlalchemy.create_engine(self.psql_main_creds)
+        con = engine.connect()
+        try:
+            result = func(*args, con=con, **kwargs)
+            con.commit()
+            return result
+        except Exception:
+            con.rollback()
+            raise
+        finally:
+            con.close()
+
+    return wrapper
+
+
+load_dotenv()  # Загружаем переменные окружения из .env
 
 
 class DataManager:
@@ -28,29 +50,7 @@ class DataManager:
         self.trading_manager = trading_manager
         self.psql_main_creds = os.getenv("DATABASE_URL")
         if trading_manager:
-            from tinkoff.invest import Client
-
-            from .tinkoff_trading import TinkoffTrading
-
-    def with_connection(func):
-        """Декоратор для управления подключением к БД."""
-
-        def wrapper(self, *args, **kwargs):
-            engine = sqlalchemy.create_engine(self.psql_main_creds)
-            con = engine.connect()
-            try:
-                # Передаём подключение в метод как именованный аргумент
-
-                result = func(self, *args, con=con, **kwargs)
-                con.commit()  # Фиксируем изменения, если не было ошибок
-                return result
-            except Exception as e:
-                con.rollback()  # Откатываем в случае ошибки
-                raise e
-            finally:
-                con.close()  # Всегда закрываем подключение
-
-        return wrapper
+            pass
 
     def get_sql_table_info(self, table_name):
         return f"""
@@ -98,7 +98,7 @@ class DataManager:
                         finish_date=finish_date,
                         time_step_resolution=time_step_resolution,
                     )
-                    if type(data) != type(None):
+                    if isinstance(data, type(None)):
                         if len(data) > 0:
                             print(len(data), "rows downloaded")
                             table_name = (
@@ -510,7 +510,7 @@ class DataManager:
         return self.common_sql_req(sql)["close"].values[0]
 
     def get_transactions(self):
-        sql = f"""
+        sql = """
             SELECT
                 *
             FROM transactions
@@ -544,7 +544,7 @@ class DataManager:
             timestep_seconds = 3600
         elif resolution == "15min":
             timestep_seconds = 15 * 60
-        hold_seconds = timestep_seconds * steps
+        timestep_seconds * steps
         buy_date = buy_dt.date()
 
         sql = f"""
@@ -822,7 +822,7 @@ class DataManager:
 
     def drop_table_by_name(self, table):
         if self.get_table_names_by_key(table):
-            sql = f"""DROP TABLE candles.{table}"""
+            sql = f"""DROP TABLE IF EXISTS candles.{table}"""
             self.common_sql_comand(sql)
 
     def drop_tables_by_ticker(self, ticker):
@@ -832,7 +832,7 @@ class DataManager:
 
     def get_tickers_from_scope(self):
         if self.check_if_table_exists("scope"):
-            sql = f"""
+            sql = """
             SELECT
                 ticker
             FROM tickers.scope 
@@ -882,7 +882,7 @@ class DataManager:
         # возвращает названия всех фичей кроме тех, что идут пачками
         # на сегодня это фичи календаря
         # так сделано чтобы в генератор набора фичей некоторые фичи попадали только целиком
-        sql = f"""
+        sql = """
             SELECT
                 *
             FROM datasets_sber_hour_validation_indicators

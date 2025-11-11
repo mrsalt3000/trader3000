@@ -1,20 +1,18 @@
-import os
-
-from dotenv import load_dotenv
-
-load_dotenv()  # загружает .env файл
-
 import datetime
+import os
 import pickle
 import time
 from decimal import Decimal
 
 import pandas as pd
+from dotenv import load_dotenv
 from tinkoff import invest
 from tinkoff.invest import Client
 
 from .data_management import DataManager
 from .tinkoff_trading import TinkoffTrading
+
+load_dotenv()  # загружает .env файл
 
 
 class Trader:
@@ -40,17 +38,13 @@ class Trader:
             TOKEN, Client, {"QUANTUM_PRICE": quant_cost}
         )
         self.data_manager = DataManager(self.trading_manager)
-        # self.training_manager = TrainingManager()
-        # self.schedule = self.trading_manager.get_ticker_info(ticker)["schedule"]
-        # self.tickers = [ticker.upper() for ticker in tickers]
         self.timestep_resolution = timestep_resolution
         self.models_roots = self.get_models_roots()
         self.tickers_models = self.get_tickers_models()
 
-        # self.model_id = self.get_model_id()
         self.last_timestep = "1970-01-01"
         self.delay_seconds = delay_seconds
-        # self.window_size = window_size
+
         self.mode = mode
         self.transaction_treshold = transaction_treshold
         self.buy_increment = buy_increment
@@ -166,7 +160,7 @@ class Trader:
             self.post_sell_rancid_orders(
                 aquisition_hold_days=self.aquisition_hold_days
             )
-            today = datetime.datetime.now().date()
+            datetime.datetime.now().date()
             if (
                 datetime.datetime.now().date() - self.date_agents_loaded
             ).days > 0:
@@ -252,85 +246,86 @@ class Trader:
                                     }
                                 )
                         if len(deals) > 0:
-                            with sqlite3.connect(
-                                self.data_manager.CONN_STRING
-                            ) as con:
-                                table_name = "transactions_estimations_raw"
-                                pd.DataFrame(deals).to_sql(
-                                    con=con,
-                                    name=table_name,
-                                    if_exists="replace",
-                                    index=False,
-                                )
+                            raise "Переписать с SQLITE3 и PD на common_sql_command"
+                            # with sqlite3.connect(
+                            #     self.data_manager.CONN_STRING
+                            # ) as con:
+                            #     table_name = "transactions_estimations_raw"
+                            #     pd.DataFrame(deals).to_sql(
+                            #         con=con,
+                            #         name=table_name,
+                            #         if_exists="replace",
+                            #         index=False,
+                            #     )
 
-                            # get best estimations by day
-                            sql = """
-                            SELECT
-                                *
-                            FROM (
-                                SELECT
-                                    *
-                                    ,row_number() OVER(
-                                        PARTITION BY ticker,estimated_sell_date 
-                                        ORDER BY estimated_price_change DESC, estimated_sell_dt ASC
-                                    ) = 1 AS is_best
-                                FROM transactions_estimations_raw
-                                )
-                            WHERE is_best
-                            """
-                            transactions_estimations_combed = (
-                                self.data_manager.common_sql_req(sql)
-                            )
-                            with sqlite3.connect(
-                                self.data_manager.CONN_STRING
-                            ) as con:
-                                table_name = "transactions_estimations_combed"
-                                transactions_estimations_combed.to_sql(
-                                    con=con,
-                                    name=table_name,
-                                    if_exists="append",
-                                    index=False,
-                                )
+                            # # get best estimations by day
+                            # sql = """
+                            # SELECT
+                            #     *
+                            # FROM (
+                            #     SELECT
+                            #         *
+                            #         ,row_number() OVER(
+                            #             PARTITION BY ticker,estimated_sell_date
+                            #             ORDER BY estimated_price_change DESC, estimated_sell_dt ASC
+                            #         ) = 1 AS is_best
+                            #     FROM transactions_estimations_raw
+                            #     )
+                            # WHERE is_best
+                            # """
+                            # transactions_estimations_combed = (
+                            #     self.data_manager.common_sql_req(sql)
+                            # )
+                            # with sqlite3.connect(
+                            #     self.data_manager.CONN_STRING
+                            # ) as con:
+                            #     table_name = "transactions_estimations_combed"
+                            #     transactions_estimations_combed.to_sql(
+                            #         con=con,
+                            #         name=table_name,
+                            #         if_exists="append",
+                            #         index=False,
+                            #     )
 
-                            if num_quants := len(
-                                transactions_estimations_combed
-                            ):
-                                print("going to buy", num_quants, "quants")
-                                estimated_sell_date = (
-                                    transactions_estimations_combed[
-                                        "estimated_sell_date"
-                                    ].max()
-                                )
-                                estimated_price_change = (
-                                    transactions_estimations_combed[
-                                        "estimated_price_change"
-                                    ].max()
-                                )
-                                transaction_from_trading_manager = (
-                                    self.trading_manager.quantum_buy(
-                                        ticker,
-                                        price=last_candle_value
-                                        * self.buy_increment,
-                                        n_quants=num_quants,
-                                    )
-                                )
-                                print(f"Bought {num_quants} quants")
-                                transaction_meta = {
-                                    "buy_dt": self.get_now(),
-                                    "num_quants": num_quants,
-                                    "sell_dt_fact": datetime.date(2100, 1, 1),
-                                    "status": "bought",
-                                    "quant_cost": self.quant_cost,
-                                    "sell_cost": None,
-                                    "model_id": model_id,
-                                    "estimated_price_change": estimated_price_change,
-                                    "estimated_sell_date": estimated_sell_date,
-                                }
-                                transaction = self.merge_dicts(
-                                    transaction_meta,
-                                    transaction_from_trading_manager,
-                                )
-                                self.data_manager.save_transaction(transaction)
+                            # if num_quants := len(
+                            #     transactions_estimations_combed
+                            # ):
+                            #     print("going to buy", num_quants, "quants")
+                            #     estimated_sell_date = (
+                            #         transactions_estimations_combed[
+                            #             "estimated_sell_date"
+                            #         ].max()
+                            #     )
+                            #     estimated_price_change = (
+                            #         transactions_estimations_combed[
+                            #             "estimated_price_change"
+                            #         ].max()
+                            #     )
+                            #     transaction_from_trading_manager = (
+                            #         self.trading_manager.quantum_buy(
+                            #             ticker,
+                            #             price=last_candle_value
+                            #             * self.buy_increment,
+                            #             n_quants=num_quants,
+                            #         )
+                            #     )
+                            #     print(f"Bought {num_quants} quants")
+                            #     transaction_meta = {
+                            #         "buy_dt": self.get_now(),
+                            #         "num_quants": num_quants,
+                            #         "sell_dt_fact": datetime.date(2100, 1, 1),
+                            #         "status": "bought",
+                            #         "quant_cost": self.quant_cost,
+                            #         "sell_cost": None,
+                            #         "model_id": model_id,
+                            #         "estimated_price_change": estimated_price_change,
+                            #         "estimated_sell_date": estimated_sell_date,
+                            #     }
+                            #     transaction = self.merge_dicts(
+                            #         transaction_meta,
+                            #         transaction_from_trading_manager,
+                            #     )
+                            #     self.data_manager.save_transaction(transaction)
                         else:
                             print("no lucky moments")
                         self.post_take_profits()
@@ -421,10 +416,8 @@ class Trader:
     def get_predictions_from_model(
         self, model, data_df, params, mode="common"
     ):
-        assert type(data_df) == pd.DataFrame
-        steps_forward = params["shift_steps"]
-        predictions = {}
-        predictions_step = []
+        assert isinstance(data_df, pd.DataFrame)
+        params["shift_steps"]
 
         # Пока не включу использование фичей
         # data = data_df[params["feature_set"]].values
@@ -542,9 +535,9 @@ class Trader:
                     id_type=invest.InstrumentIdType.INSTRUMENT_ID_TYPE_FIGI,
                     id=buy_order_info.figi,
                 ).instrument.min_price_increment
-                number_digits_after_point = (
-                    9 - len(str(min_price_increment.nano)) + 1
-                )
+                # number_digits_after_point = (
+                #     9 - len(str(min_price_increment.nano)) + 1
+                # )
                 min_price_increment = invest.utils.quotation_to_decimal(
                     min_price_increment
                 )
