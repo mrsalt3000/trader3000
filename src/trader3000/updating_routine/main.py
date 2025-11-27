@@ -24,6 +24,10 @@ def run_main_update():
             print("Error in update_schedules\n", e)
         try:
             now = str(datetime.datetime.now())[:16]
+
+            all_tickers = data_manager.get_all_candles_loaded()
+            print("all_tickers", len(all_tickers))
+
             print("update_training_data", now)
             data_manager.update_training_data(
                 data_manager.get_all_candles_loaded()

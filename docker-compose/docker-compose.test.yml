@@ -1,9 +1,15 @@
 services:
   static_analysis:
-    image: python:3.10-slim
+    image: mrsalt3000/trader3000:tests
     volumes:
       - ../:/app
     working_dir: /app
     # Указываем наш новый скрипт как точку входа
     entrypoint: ["/app/tests/static/entrypoint.sh"]
     # Команда, переданная через 'run', будет передана в entrypoint
+  unit_tests:
+    image: mrsalt3000/trader3000:tests
+    volumes:
+      - ../:/app
+    working_dir: /app
+    command: ["python", "-m", "pytest", "-v", "tests/unit"]

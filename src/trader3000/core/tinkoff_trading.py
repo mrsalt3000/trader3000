@@ -376,7 +376,7 @@ class TinkoffTrading:
             return data[0]
         return None
 
-    def quantum_sell(self, figi, quantity):
+    def quantum_sell(self, figi: str, quantity: int) -> float:
         with self.client(self.token) as client:
             resp = client.orders.post_order(
                 figi=figi,
@@ -393,14 +393,14 @@ class TinkoffTrading:
     def float_to_quotation(self, number: float) -> Quotation:
         return invest.utils.decimal_to_quotation(round(Decimal(number), 2))
 
-    def get_order_status(self, order_id: str):
+    def get_order_status(self, order_id: str) -> str:
         with self.client(self.token) as client:
             responce = client.orders.get_order_state(
                 account_id=self.account_id, order_id=order_id
             )
             return responce.execution_report_status.name
 
-    def get_stop_order_state(self, order_id):
+    def get_stop_order_state(self, order_id: str) -> invest.schemas.StopOrder:
         with self.client(self.token) as client:
             resp = client.stop_orders.get_stop_orders(
                 account_id=self.account_id
@@ -409,14 +409,14 @@ class TinkoffTrading:
                 filter(lambda x: x.stop_order_id == order_id, resp.stop_orders)
             )[0]
 
-    def get_all_instruments_tickers(self):
+    def get_all_instruments_tickers(self) -> list[str]:
         return [
             instrument["ticker"]
             for instrument in self.tickers
             if instrument["currency"] == "rub"
         ]
 
-    def get_rubles_available(self):
+    def get_rubles_available(self) -> float:
         return list(
             filter(
                 lambda x: x["ticker"] == "RUB",
@@ -424,7 +424,7 @@ class TinkoffTrading:
             )
         )[0]["quantity"] - self.get_blocked_lots("RUB")
 
-    def ticker_is_available_for_trading(self, ticker):
+    def ticker_is_available_for_trading(self, ticker: str) -> bool:
         not_available_statuses = [
             "SECURITY_TRADING_STATUS_NOT_AVAILABLE_FOR_TRADING"
         ]
@@ -439,7 +439,7 @@ class TinkoffTrading:
             not in not_available_statuses
         )
 
-    def round_by_min_price_increment(self, price, ticker):
+    def round_by_min_price_increment(self, price: float, ticker: str) -> float:
         min_price_increment = list(
             filter(
                 lambda x: x["ticker"].upper() == ticker.upper(), self.tickers
@@ -451,7 +451,7 @@ class TinkoffTrading:
             len(str(min_price_increment)),
         )
 
-    def get_blocked_lots(self, ticker):
+    def get_blocked_lots(self, ticker: str) -> float:
         figi = self.get_figi_by_ticker(ticker)
         with self.client(self.token) as client:
             portfolio = client.operations.get_portfolio(

@@ -3,7 +3,9 @@ import os
 import pickle
 import time
 from decimal import Decimal
+from typing import Any, Sequence, Union
 
+import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from tinkoff import invest
@@ -53,18 +55,62 @@ class Trader:
         self.aquisition_hold_days = aquisition_hold_days
         self.date_agents_loaded = datetime.datetime.now().date()
 
-    def get_models_roots(self):
+    def get_models_roots(self) -> list[str]:
+        """Возвращает список путей к корневым директориям моделей агентов.
+
+        Сканирует директорию `self.path_agents` и формирует абсолютные пути
+        к каждой поддиректории, содержащей модели агентов.
+
+        Returns:
+            Список строк с абсолютными путями к корневым директориям моделей.
+            Пустой список, если директория пуста или недоступна.
+        """
         models_roots = [
             self.path_agents + "\\" + i for i in os.listdir(self.path_agents)
         ]
         return models_roots
 
-    def unpickle(self, path):
+    def unpickle(self, path: str) -> Any:
+        """Загружает и возвращает объект из файла с помощью pickle.
+
+        Открывает файл с бинарным содержимым по указанному пути и десериализует
+        объект, сохранённый в этом файле с помощью pickle.
+
+        Args:
+            path (str): Путь к файлу, содержащему сериализованный объект.
+
+        Returns:
+            Любой десериализованный объект, сохранённый в файле.
+
+        Raises:
+            FileNotFoundError: Если файл по указанному пути не существует.
+            pickle.UnpicklingError: Если файл повреждён или содержит некорректные данные.
+            EOFError: При неожиданном окончании файла во время загрузки.
+            Exception: Иные ошибки, возникающие при десериализации.
+        """
         with open(f"{path}", "rb") as ff:
             data = pickle.load(ff)
         return data
 
-    def load_model(self, path):
+    def load_model(self, path: str) -> tuple[Any, dict]:
+        """Загружает модель и её параметры из сериализованного файла.
+
+        Извлекает модель и конфигурационные параметры из pickle-файла,
+        включая scaler, параметры сдвига, набор признаков и метрику ошибки.
+
+        Args:
+            path (str): Путь к pickle-файлу с сохранённой моделью.
+
+        Returns:
+            Кортеж из модели и словаря параметров:
+                - model (Any): Загруженная модель из data["raw"]["model"].
+                - params (dict): Словарь с scaler, shift_steps, feature_set и mean_error_test.
+
+        Raises:
+            KeyError: Если в файле отсутствуют ожидаемые ключи структуры данных.
+            FileNotFoundError: Если pickle-файл не найден.
+            pickle.UnpicklingError: При повреждении pickle-файла.
+        """
         data = self.unpickle(path)
         model = data["raw"]["model"]
         params = {
@@ -77,7 +123,18 @@ class Trader:
         }
         return model, params
 
-    def get_tickers_models(self):
+    def get_tickers_models(self) -> dict[str, list[Any, str, dict]]:
+        """Возвращает словарь моделей, сгруппированных по их тикерам.
+
+        Для каждого пути в `self.models_roots` извлекает тикер, идентификатор модели,
+        загружает модель с параметрами и формирует словарь, где ключ —
+        тикер, а значение — список из модели, её ID и параметров.
+
+        Returns:
+            dict[str, list[Any, str, dict]]: Словарь, где ключ — тикер (str),
+                а значение — список из модели (Any), идентификатора модели (str)
+                и словаря параметров (dict).
+        """
         tickers_models = {}
         for model_root in self.models_roots:
             ticker = self.get_ticker_from_path(model_root)
@@ -86,14 +143,62 @@ class Trader:
             tickers_models[ticker] = [model, model_id, params]
         return tickers_models
 
-    def get_ticker_from_path(self, path: str):
+    def get_ticker_from_path(self, path: str) -> str:
+        """Извлекает тикер из пути к директории модели.
+
+        Парсит путь, берёт последнее имя директории и извлекает первую часть
+        до символа подчёркивания (предполагается формат 'TICKER_...').
+
+        Args:
+            path (str): Полный путь к директории модели.
+
+        Returns:
+            str: Тикер в верхнем регистре из имени директории.
+
+        Raises:
+            IndexError: Если путь не содержит ожидаемых разделителей или пуст.
+        """
         ticker = path.split("\\")[-1].split("_")[0]
         return ticker
 
-    def get_model_id(self, path):
+    def get_model_id(self, path: str) -> str:
+        """Извлекает идентификатор модели из пути к директории.
+
+        Возвращает имя последней директории в пути, которое используется
+        как уникальный идентификатор модели.
+
+        Args:
+            path (str): Полный путь к директории модели.
+
+        Returns:
+            str: Имя последней директории в пути (идентификатор модели).
+
+        Raises:
+            IndexError: Если путь пустой или не содержит директорий.
+        """
         return path.split("\\")[-1]
 
-    def get_work_day_bound_for_schedule(self, schedule, mode, bound):
+    def get_work_day_bound_for_schedule(
+        self, schedule: str, mode: str, bound: str
+    ) -> datetime.datetime:
+        """Возвращает границу рабочего дня для торгового расписания.
+
+        Находит начало/конец торгового дня в БД trading_schedules по расписанию,
+        дате (сегодня/завтра) и типу границы (open_time/close_time).
+
+        Args:
+            schedule (str): Идентификатор торгового расписания (например, 'FX').
+            mode (str): Режим выбора даты: 'today' или 'next_day'.
+            bound (str): Тип границы: 'open_time' или 'close_time'.
+
+        Returns:
+            datetime.datetime: Граница рабочего дня в UTC.
+
+        Raises:
+            KeyError: Если в ответе БД отсутствует указанный столбец bound.
+            ValueError: При некорректном формате даты из БД.
+            IndexError: Если SQL-запрос не вернул ожидаемые данные.
+        """
         if mode == "today":
             date = datetime.datetime.now()
         elif mode == "next_day":
@@ -115,7 +220,18 @@ class Trader:
             date_str[:19], "%Y-%m-%d %H:%M:%S"
         ).replace(tzinfo=datetime.timezone.utc)
 
-    def sleep_till_next_iter(self, schedule):
+    def sleep_till_next_iter(self, schedule: str) -> None:
+        """Приостанавливает выполнение до следующей итерации по расписанию.
+
+        Вычисляет время следующей итерации на основе текущего времени, разрешения
+        timestep и задержки, затем спит указанное количество секунд.
+
+        Args:
+            schedule (str): Идентификатор торгового расписания.
+
+        Raises:
+            ValueError: При некорректных данных расписания или разрешениях.
+        """
         next_iter_start_by_resolution = self.data_manager.get_target_sell_dt(
             schedule_name=schedule,
             buy_dt=self.get_now("dt"),
@@ -139,17 +255,57 @@ class Trader:
         # print(seconds_to_sleep)
         time.sleep(seconds_to_sleep)
 
-    def get_now(self, mode="str"):
+    def get_now(self, mode: str = "str") -> Union[str, datetime.datetime]:
+        """Возвращает текущее время в указанном формате с коррекцией на 3 часа.
+
+        Корректирует системное время на -3 часа (вероятно, для UTC+3) и возвращает
+        либо строку ISO-формата, либо объект datetime.
+
+        Args:
+            mode (str, optional): Формат возвращаемого значения.
+                'str' - строка YYYY-MM-DD HH:MM:SS (по умолчанию).
+                'dt' - объект datetime.datetime.
+
+        Returns:
+            Union[str, datetime.datetime]: Текущее время в формате str или datetime.
+
+        Raises:
+            ValueError: Если mode не 'str' или 'dt'.
+        """
         now = datetime.datetime.now() - datetime.timedelta(hours=3)
         if mode == "str":
             return str(now)[:19]
         elif mode == "dt":
             return now
 
-    def merge_dicts(self, a, b):
+    def merge_dicts(self, a: dict, b: dict) -> dict:
+        """Объединяет два словаря в новый словарь.
+
+        Создаёт новый словарь, содержащий все пары ключ-значение из обоих словарей.
+        При дублирующихся ключах значения из второго словаря перезаписывают первые.
+
+        Args:
+            a (dict): Первый словарь.
+            b (dict): Второй словарь (его значения имеют приоритет).
+
+        Returns:
+            dict: Новый объединённый словарь.
+        """
         return {k: v for k, v in list(a.items()) + list(b.items())}
 
-    def watch_buyer(self):
+    def watch_buyer(self) -> None:
+        """Основной цикл наблюдения за покупками и торговыми сигналами.
+
+        Бесконечный цикл мониторинга рынка: обновляет данные, перезагружает модели,
+        генерирует предсказания, фильтрует сделки по порогам и управляет ордерами.
+
+        Основная логика:
+            - Обновляет расписания и скачивает свечи
+            - Пересчитывает индикаторы и размещает ордера
+            - Проверяет доступность инструментов для торговли
+            - Генерирует предсказания моделей и фильтрует по порогам
+            - Спит до следующей итерации по расписанию
+        """
         while True:
             if datetime.datetime.now().date() > self.date_updated_schedules:
                 self.data_manager.update_schedules()
@@ -334,7 +490,18 @@ class Trader:
             self.sleep_till_next_iter(schedule_name)
         self.is_first_cycle = False
 
-    def watch_seller(self):
+    def watch_seller(self) -> None:
+        """Основной цикл наблюдения за продажами и управлением сделками.
+
+        Цикл постоянно обновляет расписания, вычисляет плановые даты продажи
+        для долгосрочных сделок, проверяет сделки готовые к продаже и выполняет их.
+
+        Основная логика:
+            - Поиск транзакций с неопределённой плановой датой продажи и её обновление
+            - Поиск сделок, готовых к продаже, и выполнение продажи через trading_manager
+            - Обновление статусов и цен продажи в базе данных
+            - Ожидание следующей итерации по расписанию
+        """
         while True:
             # Пробуем найти дату продажи для дальних транзакций (на которые не хватило расписания)
             self.data_manager.update_schedules()
@@ -414,8 +581,32 @@ class Trader:
 
     # ЗАМЕНИТЬ НА ТАКУЮ ЖЕ ФУНКЦИЮ ИЗ training_manager
     def get_predictions_from_model(
-        self, model, data_df, params, mode="common"
-    ):
+        self,
+        model: Any,
+        data_df: pd.DataFrame,
+        params: dict,
+        mode: str = "common",
+    ) -> np.ndarray:
+        """Генерирует предсказания модели на входных данных.
+
+        Предобрабатывает данные (масштабирование через scaler), делает предсказание
+        и корректирует результат на среднюю ошибку тестовой выборки.
+
+        Args:
+            model (Any): Обученная модель для предсказаний.
+            data_df (pd.DataFrame): DataFrame с индикаторами (исключая колонку 'date').
+            params (dict): Параметры модели со scaler и mean_error_test.
+            mode (str, optional): Режим предсказания. 'last_point' - только последние данные.
+                По умолчанию 'common'.
+
+        Returns:
+            np.ndarray: Корректированные предсказания модели.
+
+        Raises:
+            AssertionError: Если data_df не является pandas DataFrame.
+            KeyError: Если в params отсутствуют scaler или mean_error_test.
+        """
+
         assert isinstance(data_df, pd.DataFrame)
         params["shift_steps"]
 
@@ -434,21 +625,60 @@ class Trader:
             prediction = prediction[-1:]
         return prediction
 
-    def median(self, inp):
+    def median(self, inp: Sequence[Union[int, float]]) -> Union[int, float]:
+        """Вычисляет медиану числовой последовательности.
+
+        Сортирует входные данные и возвращает срединный элемент.
+        Для нечётного количества элементов - точная середина.
+        Для чётного - только первый срединный элемент (не среднее).
+
+        Args:
+            inp (Sequence[Union[int, float]]): Последовательность чисел.
+
+        Returns:
+            Union[int, float]: Медиана последовательности.
+
+        Raises:
+            ValueError: Если последовательность пуста.
+        """
         return sorted(inp)[len(inp) // 2]
 
-    def get_new_orders(self):
+    def get_new_orders(self) -> np.ndarray:
+        """Возвращает массив ID новых ордеров из базы данных.
+
+        Выполняет SQL-запрос для получения order_id транзакций со статусом
+        'EXECUTION_REPORT_STATUS_NEW' и возвращает их в виде numpy массива.
+
+        Returns:
+            np.ndarray: Массив идентификаторов новых ордеров.
+        """
         sql = "SELECT order_id FROM transactions WHERE execution_report_status = 'EXECUTION_REPORT_STATUS_NEW'"
         return self.data_manager.common_sql_req(sql)["order_id"].values
 
-    def update_order_statuses(self):
+    def update_order_statuses(self) -> None:
+        """Обновляет статусы новых ордеров в базе данных.
+
+        Получает список новых ордеров, запрашивает их актуальные статусы
+        у trading_manager и обновляет записи в таблице transactions.
+
+        Returns:
+            None
+        """
         new_orders = self.get_new_orders()
         for order_id in new_orders:
             order_status = self.trading_manager.get_order_status(order_id)
             sql = f"UPDATE transactions SET execution_report_status = '{order_status}' WHERE order_id = '{order_id}'"
             self.data_manager.common_sql_comand(sql)
 
-    def update_sell_orders(self):
+    def update_sell_orders(self) -> None:
+        """Обновляет статусы и цены выполненных ордеров на продажу.
+
+        Проверяет новые ордера на продажу, запрашивает их состояние через API,
+        обновляет цену продажи и статус 'sold' для полностью исполненных ордеров.
+
+        Returns:
+            None
+        """
         new_sell_orders = self.data_manager.get_orders_sell_order_posted()
         for [sell_order_id] in new_sell_orders:
             with self.trading_manager.client(
@@ -475,7 +705,17 @@ class Trader:
                     """
                 self.data_manager.common_sql_comand(sql)
 
-    def post_sell_orders(self):
+    def post_sell_orders(self) -> None:
+        """Размещает ордера на продажу для купленных позиций.
+
+        Для каждой купленной позиции получает текущее состояние ордера покупки,
+        рассчитывает цену продажи с учётом предполагаемого изменения цены и
+        отправляет лимитный ордер на продажу. Обновляет статусы и sell_order_id
+        в базе данных.
+
+        Returns:
+            None
+        """
         orders_bought = self.data_manager.get_oreders_bought()
         for buy_order_id, estimated_price_change in orders_bought:
             with self.trading_manager.client(
@@ -517,7 +757,16 @@ class Trader:
                     """
                 self.data_manager.common_sql_comand(sql)
 
-    def post_take_profits(self):
+    def post_take_profits(self) -> None:
+        """Размещает стоп-ордера Take Profit для купленных позиций.
+
+        Для каждой купленной позиции рассчитывает цену Take Profit с округлением
+        до минимального шага цены инструмента и отправляет стоп-ордер через API.
+        Обновляет статус 'take_profit_posted' и sell_order_id в базе данных.
+
+        Returns:
+            None
+        """
         orders_bought = self.data_manager.get_oreders_bought()
         for buy_order_id, estimated_price_change in orders_bought:
             with self.trading_manager.client(
@@ -575,7 +824,19 @@ class Trader:
                     """
                 self.data_manager.common_sql_comand(sql)
 
-    def post_sell_rancid_orders(self, aquisition_hold_days):
+    def post_sell_rancid_orders(self, aquisition_hold_days: int) -> None:
+        """Размещает рыночные ордера на продажу устаревших позиций.
+
+        Определяет "залежавшиеся" ордера по дате покупки и времени удержания,
+        размещает рыночные ордера на их продажу через API, обновляет статус,
+        цену, стоимость и фактическую дату продажи в базе данных.
+
+        Args:
+            aquisition_hold_days (int): Максимальное количество дней удержания позиции.
+
+        Returns:
+            None
+        """
         print("post_sell_rancid_orders")
         orders_rancid = self.data_manager.get_oreders_rancid(
             aquisition_hold_days
