@@ -5,7 +5,7 @@ import warnings
 
 import pandas as pd
 import talib
-from talib.abstract import (
+from talib.abstract import (  # type: ignore[attr-defined]
     ADX,
     ADXR,
     APO,

@@ -10,6 +10,7 @@ from tinkoff import invest
 from tinkoff.invest import (
     CandleInterval,
     Client,
+    MoneyValue,
     OrderDirection,
     OrderType,
     PostOrderResponse,
@@ -242,6 +243,23 @@ class TinkoffTrading:
             filter(lambda x: x["ticker"] == ticker.upper(), self.tickers)
         )[0]["lot"]
 
+    def money_value_to_quotation(
+        self, money_value: Optional[MoneyValue]
+    ) -> Optional[Quotation]:
+        if money_value is None:
+            return None
+        return Quotation(
+            units=money_value.units,
+            nano=money_value.nano,
+            # currency=money_value.currency,
+        )
+
+    def money_value_to_float(self, money_value: Optional[MoneyValue]) -> float:
+        if money_value is None:
+            return 0.0
+        quotation = Quotation(units=money_value.units, nano=money_value.nano)
+        return self.quotation_to_float(quotation)
+
     def quantum_buy(
         self, ticker: str, price: float, n_quants: int = 1
     ) -> Transaction:
@@ -302,7 +320,6 @@ class TinkoffTrading:
                     )
                 )
 
-            post_order_response.execution_report_status
             transaction = {
                 "order_id": post_order_response.order_id,
                 "order_request_id": post_order_response.order_request_id,
@@ -311,24 +328,30 @@ class TinkoffTrading:
                 "execution_report_status": post_order_response.execution_report_status.name,
                 "lots_requested": post_order_response.lots_requested,
                 "lots_executed": post_order_response.lots_executed,
-                "initial_order_price": self.quotation_to_float(
+                "initial_order_price": self.money_value_to_float(
                     post_order_response.initial_order_price
-                ),
-                "executed_order_price": self.quotation_to_float(
+                )
+                or 0.0,
+                "executed_order_price": self.money_value_to_float(
                     post_order_response.executed_order_price
-                ),
-                "total_order_amount": self.quotation_to_float(
+                )
+                or 0.0,
+                "total_order_amount": self.money_value_to_float(
                     post_order_response.total_order_amount
-                ),
-                "initial_commission": self.quotation_to_float(
+                )
+                or 0.0,
+                "initial_commission": self.money_value_to_float(
                     post_order_response.initial_commission
-                ),
-                "initial_security_price": self.quotation_to_float(
+                )
+                or 0.0,
+                "initial_security_price": self.money_value_to_float(
                     post_order_response.initial_security_price
-                ),
-                "executed_commission": self.quotation_to_float(
+                )
+                or 0.0,
+                "executed_commission": self.money_value_to_float(
                     post_order_response.executed_commission
-                ),
+                )
+                or 0.0,
                 "direction": post_order_response.direction.name,
                 "order_type": post_order_response.order_type.name,
             }
@@ -354,8 +377,8 @@ class TinkoffTrading:
                 "initial_commission": 0,
                 "initial_security_price": 0,
                 "executed_commission": 0,
-                "direction": OrderDirection.ORDER_DIRECTION_BUY,
-                "order_type": OrderType.ORDER_TYPE_LIMIT,
+                "direction": OrderDirection.ORDER_DIRECTION_BUY.name,
+                "order_type": OrderType.ORDER_TYPE_LIMIT.name,
             }
         return cast(Transaction, transaction)
 

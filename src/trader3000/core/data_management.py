@@ -27,7 +27,9 @@ R = TypeVar("R")
 T = TypeVar("T", bound="DataManager")
 
 if TYPE_CHECKING:
-    import sqlalchemy.engine
+    from sqlalchemy.engine import Connection
+else:
+    Connection = object  # заглушка для runtime
 
 
 def with_connection(func: Callable[P, R]) -> Callable[P, R]:
@@ -36,7 +38,7 @@ def with_connection(func: Callable[P, R]) -> Callable[P, R]:
         engine = sqlalchemy.create_engine(self.psql_main_creds)
         con = engine.connect()
         try:
-            result = func(*args, con=con, **kwargs)
+            result = func(*args, con=con, **kwargs)  # type: ignore[arg-type]
             con.commit()
             return result
         except Exception:

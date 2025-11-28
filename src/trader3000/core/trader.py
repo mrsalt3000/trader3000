@@ -123,7 +123,7 @@ class Trader:
         }
         return model, params
 
-    def get_tickers_models(self) -> dict[str, list[Any, str, dict]]:
+    def get_tickers_models(self) -> dict[str, list[Any]]:
         """Возвращает словарь моделей, сгруппированных по их тикерам.
 
         Для каждого пути в `self.models_roots` извлекает тикер, идентификатор модели,
@@ -200,17 +200,22 @@ class Trader:
             IndexError: Если SQL-запрос не вернул ожидаемые данные.
         """
         if mode == "today":
-            date = datetime.datetime.now()
+            date_obj = datetime.datetime.now()
         elif mode == "next_day":
-            date = datetime.datetime.now() + datetime.timedelta(days=1)
-        date = str(date)[:10]
+            date_obj = datetime.datetime.now() + datetime.timedelta(days=1)
+        else:
+            raise ValueError(f"Invalid mode: {mode}")
+
+        date_str = date_obj.strftime(
+            "%Y-%m-%d"
+        )  # str(date_obj)[:10] → более читаемо
+
         sql = f"""
-        SELECT 
-            * 
+        SELECT * 
         FROM trading_schedules 
         WHERE schedule = '{schedule}' 
-            AND date LIKE '{date}%'
-            """
+            AND date LIKE '{date_str}%'
+        """
         resp = self.data_manager.common_sql_req(sql)[bound]
         if len(resp) > 0:
             date_str = resp.values[0]
@@ -237,14 +242,14 @@ class Trader:
             buy_dt=self.get_now("dt"),
             resolution=self.timestep_resolution,
             steps=1,
-        ).replace(tzinfo=datetime.timezone.utc)
+        )
+
         next_iter_start_by_resolution += datetime.timedelta(
             seconds=self.delay_seconds
         )
 
         seconds_to_sleep = (
-            next_iter_start_by_resolution
-            - self.get_now("dt").replace(tzinfo=datetime.timezone.utc)
+            next_iter_start_by_resolution - self.get_now("dt")
         ).seconds
         print(
             "Sleeping till",
@@ -277,6 +282,8 @@ class Trader:
             return str(now)[:19]
         elif mode == "dt":
             return now
+        else:
+            raise ValueError(f"Invalid mode: {mode}. Expected 'str' or 'dt'")
 
     def merge_dicts(self, a: dict, b: dict) -> dict:
         """Объединяет два словаря в новый словарь.
@@ -347,19 +354,19 @@ class Trader:
                         prediction = self.get_predictions_from_model(
                             model, indicators, params, mode="last_point"
                         )
-                        # return prediction
-                        # process predictions
+
                         last_candle_value = self.data_manager.get_last_price(
                             ticker=ticker, resolution=self.timestep_resolution
                         )
-                        prediction = [last_candle_value, prediction[0]]
-                        # return
-                        # prediction[0]=[last_candle_value]
-                        # prediction = {k:prediction[k] for k in sorted(prediction.keys())}
-                        prediction = {
-                            0: prediction[0],
-                            params["shift_steps"]: prediction[1],
+                        prediction_array = np.array(
+                            [float(last_candle_value), float(prediction[0])]
+                        )
+
+                        prediction_dict = {
+                            0: prediction_array[0],
+                            params["shift_steps"]: prediction_array[1],
                         }
+
                         fact_dt = self.data_manager.get_candles_last_dt(
                             ticker=ticker,
                             time_step_resolution=self.timestep_resolution,
@@ -371,15 +378,15 @@ class Trader:
                                 buy_dt=fact_dt.replace(tzinfo=None),
                                 resolution="hour",
                                 steps=t,
-                            ): round(prediction[t] / last_candle_value, 2)
-                            for t in prediction.keys()
+                            ): round(prediction_dict[t] / last_candle_value, 2)
+                            for t in prediction_dict.keys()
                         }
 
                         # get raw buy estimations
                         deals = []
                         for dt, value in prediction_processed.items():
                             days_to_deal = (
-                                dt.date() - self.get_now("dt").date()
+                                dt.date() - self.get_now("dt").date()  # type: ignore[union-attr]
                             ).days
                             transaction_treshold_weighted = round(
                                 self.transaction_treshold
@@ -395,14 +402,14 @@ class Trader:
                                         "estimated_sell_date": dt.date(),
                                         "estimated_price_change": value,
                                         "is_to_be_sold_today": dt.date()
-                                        == self.get_now("dt").date(),
+                                        == self.get_now("dt").date(),  # type: ignore[union-attr]
                                         "treshold": transaction_treshold_weighted,
                                         "ticker": ticker,
                                         "model_id": model_id,
                                     }
                                 )
                         if len(deals) > 0:
-                            raise "Переписать с SQLITE3 и PD на common_sql_command"
+                            raise "Переписать с SQLITE3 и PD на common_sql_command"  # type: ignore[misc]
                             # with sqlite3.connect(
                             #     self.data_manager.CONN_STRING
                             # ) as con:
@@ -790,12 +797,12 @@ class Trader:
                 min_price_increment = invest.utils.quotation_to_decimal(
                     min_price_increment
                 )
-                sell_price = (
+                sell_price_decimal = (
                     round(sell_price / min_price_increment)
                     * min_price_increment
                 )
-                sell_price = invest.utils.decimal_to_quotation(
-                    Decimal(sell_price)
+                sell_price_quotation = invest.utils.decimal_to_quotation(
+                    Decimal(sell_price_decimal)
                 )
 
                 sell_order_info = client.stop_orders.post_stop_order(
@@ -804,8 +811,8 @@ class Trader:
                     direction=invest.schemas.OrderDirection.ORDER_DIRECTION_SELL,
                     account_id=self.trading_manager.account_id,
                     stop_order_type=invest.schemas.StopOrderType.STOP_ORDER_TYPE_TAKE_PROFIT,
-                    price=sell_price,
-                    stop_price=sell_price,
+                    price=sell_price_quotation,
+                    stop_price=sell_price_quotation,
                     expire_date=None,
                     expiration_type=invest.schemas.StopOrderExpirationType.STOP_ORDER_EXPIRATION_TYPE_GOOD_TILL_CANCEL,
                 )
