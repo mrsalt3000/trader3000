@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     python3-dev \
     curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Устанавливаем менеджер пакетов uv (опционально, но рекомендуется)
@@ -26,6 +27,10 @@ RUN apt-get purge -y build-essential python3-dev \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /root/.cache/pip \
     && rm  requirements-dev.txt 
+
+#Тёмная тема jupyterlab по умолчанию (persist)
+RUN mkdir -p /root/.jupyter/lab/user-settings/@jupyterlab/apputils-extension && \
+    printf '{ "theme": "JupyterLab Dark" }\n' > /root/.jupyter/lab/user-settings/@jupyterlab/apputils-extension/themes.jupyterlab-settings
 
 # Устанавливаем переменные окружения
 ENV PYTHONUNBUFFERED=1 \

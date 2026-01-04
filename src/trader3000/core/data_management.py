@@ -343,7 +343,7 @@ class DataManager:
 
                     table_name = f"{candles_table}_{dataset_type}_indicators"
                     slice_ = calculated_data.loc[
-                        start:finish, calculated_data_columns[:5]  # type: ignore
+                        start:finish, calculated_data_columns[5:]  # type: ignore
                     ]
                     slice_.index = slice_.index.astype(str)
                     slice_.index.name = "date"
