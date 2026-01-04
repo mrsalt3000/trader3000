@@ -2,7 +2,7 @@ services:
   jupyter:
     image: mrsalt3000/trader3000:dev-latest
     ports:
-      - "8888:8888"  # JupyterLab на http://localhost:8888
+      - "8888:8888"
     volumes:
       - E:/work/2. trader3000/jupyter:/home/jovyan/work   
     command: >
