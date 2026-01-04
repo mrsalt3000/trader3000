@@ -1,5 +1,5 @@
 services:
-  trader:
+  updating_routine:
     image: mrsalt3000/trader3000:latest
     volumes:
       - ../src:/app

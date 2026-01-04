@@ -1,0 +1,32 @@
+FROM mrsalt3000/trader3000:latest
+
+# Устанавливаем системные зависимости
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    python3-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем менеджер пакетов uv (опционально, но рекомендуется)
+RUN pip install --no-cache-dir uv
+
+# Создаем рабочую директорию
+WORKDIR /app
+
+# Копируем файлы зависимостей (если есть)
+COPY requirements-dev.txt ./
+
+# Устанавливаем зависимости из  requirements-dev.txt
+RUN uv pip install --system -r  requirements-dev.txt
+
+# Очищаем кэш и временные файлы
+RUN apt-get purge -y build-essential python3-dev \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /root/.cache/pip \
+    && rm  requirements-dev.txt 
+
+# Устанавливаем переменные окружения
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app

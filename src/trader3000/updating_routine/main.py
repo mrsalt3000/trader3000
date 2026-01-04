@@ -29,9 +29,7 @@ def run_main_update():
             print("all_tickers", len(all_tickers))
 
             print("update_training_data", now)
-            data_manager.update_training_data(
-                data_manager.get_all_candles_loaded()
-            )
+            data_manager.update_training_data(all_tickers)
             now = str(datetime.datetime.now())[:16]
             print("Finished update_training_data at", now)
         except Exception as e:

@@ -1,0 +1,45 @@
+services:
+  jupyter:
+    image: mrsalt3000/trader3000:dev-latest
+    ports:
+      - "8888:8888"  # JupyterLab на http://localhost:8888
+    volumes:
+      - E:/work/2. trader3000/jupyter:/home/jovyan/work   
+    command: >
+          sh -c "jupyter lab --allow-root --no-browser --ip=0.0.0.0 --port=8888
+          --ServerApp.token='' --ServerApp.password=''
+          --ServerApp.allow_origin='*' --ServerApp.disable_check_xsrf=True"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    working_dir:  /home/jovyan/work
+    stdin_open: true
+    tty: true
+    environment:
+      - JUPYTER_ENABLE_LAB=yes  
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - TINVEST_TOKEN=${TINVEST_TOKEN}
+  postgres:
+    image: postgres:13
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: |
+        pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} &&
+        psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "SELECT 1 FROM trading.log LIMIT 1;"
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+    - postgres_data:/var/lib/postgresql/data
+    
+volumes:
+  postgres_data:

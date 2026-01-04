@@ -131,11 +131,12 @@ warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 class IndicatorsCalculator:
     def __init__(self, data):
         self.data = data
-        # self.data_manager = DataManager()
-        self.add_calendar_features()
+        #self.add_calendar_features()
         if self.data.index.name != "date":
             self.data.set_index("date", inplace=True)
-        data.sort_index(inplace=True)
+        self.data.sort_index(inplace=True)
+        if "index" in  self.data.columns:
+            del data["index"]
 
     def add_calendar_features(self):
         # Календарь
@@ -1510,7 +1511,5 @@ class IndicatorsCalculator:
             WCLPRICE(self.data["high"], self.data["low"], self.data["close"])
             / self.data["close"]
         )
-
         self.data.sort_values(by=["date"], ascending=True, inplace=True)
         return self.data.dropna().copy()
-        # return self.data.copy()

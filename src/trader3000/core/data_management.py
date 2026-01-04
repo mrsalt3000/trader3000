@@ -237,9 +237,10 @@ class DataManager:
         """
         try:
             pd.read_sql(sql, con)
+            print("common_sql_command:",sql, "applied")
         except Exception as error:
             print(error)
-            time.sleep(10)
+            #time.sleep(10)
 
     @with_connection
     def get_all_candles_table_names(
@@ -289,6 +290,7 @@ class DataManager:
         Returns:
             None: Метод не возвращает значения.
         """
+        print("recalculating indicators","mode:",mode)
         candles_tables = self.get_all_candles_table_names()
         if mode == "total":
             TRESHOLDS = {
@@ -310,6 +312,7 @@ class DataManager:
                 ],
             }
             for candles_table in candles_tables:
+                print(candles_table)
                 candles = self.common_sql_req(
                     sql=f'SELECT DISTINCT * FROM candles."{candles_table}" ORDER BY date DESC'
                 )
@@ -317,12 +320,14 @@ class DataManager:
                     continue
                 candles.drop_duplicates(inplace=True)
                 indicators_calculator = IndicatorsCalculator(candles)
+                #print("max(indicators_calculator.data[date]):",max(indicators_calculator.data.index))
                 calculated_data = indicators_calculator.calculate_indicators()
+                #print("max(calculated_data.index):",max(calculated_data.index))
                 calculated_data_columns = calculated_data.columns
                 calculated_data.index = pd.to_datetime(calculated_data.index)
 
                 for dataset_type, [start, finish] in TRESHOLDS.items():
-                    table_name = f"{candles_table.replace('candles_','datasets_')}_{dataset_type}_cost_history"
+                    table_name = f"{candles_table}_{dataset_type}_cost_history"
                     slice_ = calculated_data.loc[
                         start:finish, calculated_data_columns[:5]  # type: ignore
                     ]
@@ -330,12 +335,13 @@ class DataManager:
                     slice_.index.name = "date"
                     slice_.to_sql(
                         con=con,
+                        schema="datasets",
                         name=table_name,
                         if_exists="replace",
                         index=True,
                     )
 
-                    table_name = f"{candles_table.replace('candles_','datasets_')}_{dataset_type}_indicators"
+                    table_name = f"{candles_table}_{dataset_type}_indicators"
                     slice_ = calculated_data.loc[
                         start:finish, calculated_data_columns[:5]  # type: ignore
                     ]
@@ -343,6 +349,7 @@ class DataManager:
                     slice_.index.name = "date"
                     slice_.to_sql(
                         con=con,
+                        schema="datasets",
                         name=table_name,
                         if_exists="replace",
                         index=True,
@@ -361,7 +368,7 @@ class DataManager:
                 calculated_data_columns = calculated_data.columns
 
                 for prefix in ["validation", "total"]:
-                    table_name = f"{candles_table.replace('candles_','datasets_')}_{prefix}_cost_history"
+                    table_name = f"{candles_table}_{prefix}_cost_history"
                     slice_ = calculated_data[calculated_data_columns[:5]]
                     dates_from_slice = (
                         "(" + ",".join([f"'{i}'" for i in slice_.index]) + ")"
@@ -379,13 +386,14 @@ class DataManager:
                     )
                     data.to_sql(
                         con=con,
+                        schema="datasets",
                         name=table_name,
                         if_exists="replace",
                         index=True,
                     )
 
                 for prefix in ["validation", "total"]:
-                    table_name = f"{candles_table.replace('candles_','datasets_')}_{prefix}_indicators"
+                    table_name = f"{candles_table}_{prefix}_indicators"
                     slice_ = calculated_data[calculated_data_columns[5:]]
                     dates_from_slice = (
                         "(" + ",".join([f"'{i}'" for i in slice_.index]) + ")"
@@ -402,6 +410,7 @@ class DataManager:
                     )
                     data.to_sql(
                         con=con,
+                        schema="datasets",
                         name=table_name,
                         if_exists="replace",
                         index=True,
@@ -1020,12 +1029,13 @@ class DataManager:
                 SELECT
                     *
                 FROM information_schema.tables
-                WHERE table_schema = 'indicators'
+                WHERE table_schema = 'datasets'
             """
         result = self.common_sql_req(sql)
         if result is None or result.empty:
             return []  # Возвращаем пустой список, если никаких таблиц нет
-        tables = result["name"].values
+        tables = result["table_name"].values
+        #tables= result
         return tables
 
     @with_connection
@@ -1432,7 +1442,6 @@ class DataManager:
         if lag > 2:
             print("downloading updates")
             self.download_candles_delta(tickers)
-            # self.recalculate_indicators()
         print("candles data up to date", "\n")
 
     @with_connection
@@ -1547,8 +1556,10 @@ class DataManager:
         Returns:
             None: Метод не возвращает значения.
         """
+        print(f"DROPPING {table}")
         if self.get_table_names_by_key(table):
             sql = f"""DROP TABLE IF EXISTS candles.{table}"""
+            print(sql)
             self.common_sql_comand(sql)
 
     @with_connection
@@ -1722,4 +1733,11 @@ class DataManager:
         result = con.execute(text(sql)).fetchone()
         if result is None or result[0] is None:
             return None
-        return result[0]  # предполагается, что это datetime.datetime
+        if isinstance(result[0], datetime.datetime):
+            return result[0]
+        if isinstance(result[0], str):
+            # Исправлено: берем первые 10 символов (YYYY-MM-DD) и парсим
+            date_str = result[0][:10]
+            return datetime.datetime.strptime(date_str, "%Y-%m-%d")
+        # Для других типов (date) преобразуем в datetime
+        return datetime.datetime.combine(result[0], datetime.time.min)
