@@ -353,6 +353,8 @@ class DataManager:
                         name=table_name,
                         if_exists="replace",
                         index=True,
+                        method = "multy",
+                        chunksize = "1000"
                     )
         elif mode == "update":
             for candles_table in candles_tables:
