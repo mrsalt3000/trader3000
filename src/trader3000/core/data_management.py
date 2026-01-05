@@ -294,18 +294,18 @@ class DataManager:
         candles_tables = self.get_all_candles_table_names()
         if mode == "total":
             TRESHOLDS = {
-                "train": [
-                    datetime.datetime(2019, 1, 1, 0),
-                    datetime.datetime(2021, 6, 1, 0),
-                ],
-                "test": [
-                    datetime.datetime(2021, 6, 1, 0),
-                    datetime.datetime(2024, 1, 1, 0),
-                ],
-                "validation": [
-                    datetime.datetime(2024, 1, 1, 0),
-                    datetime.datetime(2100, 1, 1, 0),
-                ],
+                # "train": [
+                #     datetime.datetime(2019, 1, 1, 0),
+                #     datetime.datetime(2021, 6, 1, 0),
+                # ],
+                # "test": [
+                #     datetime.datetime(2021, 6, 1, 0),
+                #     datetime.datetime(2024, 1, 1, 0),
+                # ],
+                # "validation": [
+                #     datetime.datetime(2024, 1, 1, 0),
+                #     datetime.datetime(2100, 1, 1, 0),
+                # ],
                 "total": [
                     datetime.datetime(2000, 1, 1, 0),
                     datetime.datetime(2100, 1, 1, 0),
@@ -353,8 +353,6 @@ class DataManager:
                         name=table_name,
                         if_exists="replace",
                         index=True,
-                        method = "multi",
-                        chunksize = 1000
                     )
         elif mode == "update":
             for candles_table in candles_tables:
