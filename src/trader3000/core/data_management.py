@@ -273,6 +273,7 @@ class DataManager:
     def recalculate_indicators(
         self,
         mode: str = "total",
+        tickers = [],
         con: Optional["sqlalchemy.engine.Connection"] = None,
     ) -> None:
         """
@@ -291,7 +292,14 @@ class DataManager:
             None: Метод не возвращает значения.
         """
         print("recalculating indicators","mode:",mode)
-        candles_tables = self.get_all_candles_table_names()
+        if len(tickers)==0:
+            candles_tables = self.get_all_candles_table_names()
+        else:
+            candles_tables = [
+                table for ticker in tickers 
+                 for table in self.get_table_names_by_key(ticker, "candles")
+            ]
+
         if mode == "total":
             TRESHOLDS = {
                 # "train": [
@@ -307,7 +315,7 @@ class DataManager:
                 #     datetime.datetime(2100, 1, 1, 0),
                 # ],
                 "total": [
-                    datetime.datetime(2000, 1, 1, 0),
+                    datetime.datetime(1900, 1, 1, 0),
                     datetime.datetime(2100, 1, 1, 0),
                 ],
             }
@@ -353,6 +361,7 @@ class DataManager:
                         name=table_name,
                         if_exists="replace",
                         index=True,
+
                     )
         elif mode == "update":
             for candles_table in candles_tables:
@@ -1006,7 +1015,7 @@ class DataManager:
         sql = f"""
         SELECT
             *
-        FROM trading_schedules
+        FROM trading.schedules
         WHERE schedule = '{schedule}'
         AND date = '{today}'
                 """
@@ -1476,6 +1485,7 @@ class DataManager:
     def get_table_names_by_key(
         self,
         table: str,
+        schema: str = "",
         con: Optional["sqlalchemy.engine.Connection"] = None,
     ) -> list[str]:
         """
@@ -1491,12 +1501,14 @@ class DataManager:
         Returns:
             list[str]: Список найденных имен таблиц, содержащих ключ.
         """
+        schema_sql = f"AND table_schema = '{schema}'" if len(schema)>0 else ""
         sql = f"""
                 SELECT
                     table_name AS table
                 FROM information_schema.tables
                 WHERE table_type = 'BASE TABLE'
                     AND table_name LIKE '%{table}%'
+                    {schema_sql}
             """
         if con is None:
             raise ValueError(
