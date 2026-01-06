@@ -865,7 +865,7 @@ class DataManager:
         sql = f"""
             SELECT
                 close
-            FROM candles_{ticker}_{resolution}
+            FROM candles.{ticker}_{resolution}
             ORDER BY date DESC 
             LIMIT 1
             """

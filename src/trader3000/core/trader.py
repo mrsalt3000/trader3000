@@ -774,7 +774,7 @@ class Trader:
         Returns:
             None
         """
-        orders_bought = self.data_manager.get_oreders_bought()
+        orders_bought = self.data_manager.get_orders_bought()
         for buy_order_id, estimated_price_change in orders_bought:
             with self.trading_manager.client(
                 self.trading_manager.token
@@ -845,7 +845,7 @@ class Trader:
             None
         """
         print("post_sell_rancid_orders")
-        orders_rancid = self.data_manager.get_oreders_rancid(
+        orders_rancid = self.data_manager.get_orders_rancid(
             aquisition_hold_days
         )
         for order_id, buy_dt, lots_requested in orders_rancid:
