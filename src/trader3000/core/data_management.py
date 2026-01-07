@@ -980,7 +980,7 @@ class DataManager:
         sql = f"""
         SELECT DISTINCT
             *
-        FROM trading_schedules
+        FROM trading.schedules
         WHERE schedule = '{schedule_name}'
             AND date >= '{str(buy_date)}'
         ORDER BY date
@@ -1226,7 +1226,7 @@ class DataManager:
         SELECT
             order_id,
             estimated_price_change
-        FROM transactions
+        FROM transaction.transactions
         WHERE execution_report_status IN ('EXECUTION_REPORT_STATUS_FILL','EXECUTION_REPORT_STATUS_PARTIALLYFILL')
             AND direction = 'ORDER_DIRECTION_BUY'
             AND status = 'bought'

@@ -464,10 +464,11 @@ class TinkoffTrading:
         lot_quantity = self.get_lot_quantity(ticker)
         buy_price = last_price * self.BUY_INCREASE
         min_buy_amount = buy_price * lot_quantity
+        print("quantum_buy:","min_buy_amount:",min_buy_amount)
 
         lots_to_buy = int(self.QUANTUM_PRICE // min_buy_amount)
         figi = self.get_figi_by_ticker(ticker)
-
+        print("lots_to_buy:",lots_to_buy)
         price = self.round_by_min_price_increment(price, ticker)
         price_quotation = self.float_to_quotation(price)
         # price_quotation.nano = int(str(price_quotation.nano)[:1])#+"0"*1
@@ -502,6 +503,12 @@ class TinkoffTrading:
         if figi is None:
             raise RuntimeError("figi не должен быть None")
 
+
+        print(
+            "post_order_response",
+            "\n","quantity:",lots_to_buy * n_quants,
+            "\n","price:",price_quotation,
+        )
         if lots_to_buy > 0 and is_enough_money:
             with self.client(self.token) as client:
                 post_order_response: PostOrderResponse = (
@@ -510,7 +517,7 @@ class TinkoffTrading:
                         direction=OrderDirection.ORDER_DIRECTION_BUY,
                         account_id=self.account_id,
                         order_type=OrderType.ORDER_TYPE_LIMIT,
-                        order_id=uuid.uuid4().hex,
+                        order_id="",#uuid.uuid4().hex,
                         instrument_id=figi,
                         price=price_quotation,
                     )
