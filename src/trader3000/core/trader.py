@@ -15,7 +15,7 @@ from .data_management import DataManager
 from .tinkoff_trading import TinkoffTrading
 
 load_dotenv()  # загружает .env файл
-
+#test dev token
 
 class Trader:
     def __init__(
