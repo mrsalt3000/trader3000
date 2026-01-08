@@ -20,17 +20,13 @@ load_dotenv()  # загружает .env файл
 class Trader:
     def __init__(
         self,
-        timestep_resolution,
-        path_agents
-        # ,models_roots
-        ,
-        transaction_treshold,
+        timestep_resolution = "hour",
+        path_agents = "models",
         mode="prod",
         quant_cost=300,
         delay_seconds=15,
         buy_increment=1.0005,
         is_first_cycle=True,
-        aquisition_hold_days=14,
     ):
         assert mode in ["test", "prod"]
         TOKEN = os.getenv("TINVEST_TOKEN")
@@ -41,34 +37,14 @@ class Trader:
         )
         self.data_manager = DataManager(self.trading_manager)
         self.timestep_resolution = timestep_resolution
-        self.models_roots = self.get_models_roots()
-        self.tickers_models = self.get_tickers_models()
 
         self.last_timestep = "1970-01-01"
         self.delay_seconds = delay_seconds
 
         self.mode = mode
-        self.transaction_treshold = transaction_treshold
         self.buy_increment = buy_increment
-        self.daily_teshold_increment_constant = 1.5
         self.date_updated_schedules = datetime.datetime.now().date()
-        self.aquisition_hold_days = aquisition_hold_days
         self.date_agents_loaded = datetime.datetime.now().date()
-
-    def get_models_roots(self) -> list[str]:
-        """Возвращает список путей к корневым директориям моделей агентов.
-
-        Сканирует директорию `self.path_agents` и формирует абсолютные пути
-        к каждой поддиректории, содержащей модели агентов.
-
-        Returns:
-            Список строк с абсолютными путями к корневым директориям моделей.
-            Пустой список, если директория пуста или недоступна.
-        """
-        models_roots = [
-            self.path_agents + "\\" + i for i in os.listdir(self.path_agents)
-        ]
-        return models_roots
 
     def unpickle(self, path: str) -> Any:
         """Загружает и возвращает объект из файла с помощью pickle.
@@ -225,7 +201,7 @@ class Trader:
             date_str[:19], "%Y-%m-%d %H:%M:%S"
         ).replace(tzinfo=datetime.timezone.utc)
 
-    def sleep_till_next_iter(self, schedule: str) -> None:
+    def sleep_till_next_iter(self, schedule: str = None) -> None:
         """Приостанавливает выполнение до следующей итерации по расписанию.
 
         Вычисляет время следующей итерации на основе текущего времени, разрешения
@@ -237,26 +213,30 @@ class Trader:
         Raises:
             ValueError: При некорректных данных расписания или разрешениях.
         """
-        next_iter_start_by_resolution = self.data_manager.get_target_sell_dt(
-            schedule_name=schedule,
-            buy_dt=self.get_now("dt"),
-            resolution=self.timestep_resolution,
-            steps=1,
-        )
-
-        next_iter_start_by_resolution += datetime.timedelta(
-            seconds=self.delay_seconds
-        )
-
-        seconds_to_sleep = (
-            next_iter_start_by_resolution - self.get_now("dt")
-        ).seconds
-        print(
-            "Sleeping till",
-            str(next_iter_start_by_resolution + datetime.timedelta(hours=3))[
-                :16
-            ],
-        )
+        try:
+            next_iter_start_by_resolution = self.data_manager.get_target_sell_dt(
+                schedule_name=schedule,
+                buy_dt=self.get_now("dt"),
+                resolution=self.timestep_resolution,
+                steps=1,
+            )
+    
+            next_iter_start_by_resolution += datetime.timedelta(
+                seconds=self.delay_seconds
+            )
+    
+            seconds_to_sleep = (
+                next_iter_start_by_resolution - self.get_now("dt")
+            ).seconds
+            print(
+                "Sleeping till",
+                str(next_iter_start_by_resolution + datetime.timedelta(hours=3))[
+                    :16
+                ],
+            )
+        except:
+            print("Failed to get schedule info. Sleeping 1 hour")
+            seconds_to_sleep = 60*60
         # print(seconds_to_sleep)
         time.sleep(seconds_to_sleep)
 
@@ -320,9 +300,7 @@ class Trader:
                 [ticker.upper() for ticker in self.tickers_models.keys()]
             )
             self.data_manager.recalculate_indicators()
-            self.post_sell_rancid_orders(
-                aquisition_hold_days=self.aquisition_hold_days
-            )
+            self.post_sell_rancid_orders()
             datetime.datetime.now().date()
             if (
                 datetime.datetime.now().date() - self.date_agents_loaded
@@ -432,7 +410,7 @@ class Trader:
                             #             PARTITION BY ticker,estimated_sell_date
                             #             ORDER BY estimated_price_change DESC, estimated_sell_dt ASC
                             #         ) = 1 AS is_best
-                            #     FROM transactions_estimations_raw
+                            #     FROM transaction.transactions_estimations_raw
                             #     )
                             # WHERE is_best
                             # """
@@ -515,7 +493,7 @@ class Trader:
             sql = """
             SELECT
                 *
-            FROM transactions
+            FROM transaction.transactions
             WHERE sell_dt_plan = '2100-01-01'
             """
             transactions_to_process = self.data_manager.common_sql_req(
@@ -543,7 +521,7 @@ class Trader:
                 )
                 if str(target_sell_dt)[:10] != "2100-01-01":
                     sql = f"""
-                        UPDATE transactions
+                        UPDATE transaction.transactions
                         SET sell_dt_plan = '{target_sell_dt}'
                         WHERE order_id = '{order_id}'
                         """
@@ -552,7 +530,7 @@ class Trader:
             sql = f"""
                 SELECT
                     *
-                FROM transactions
+                FROM transaction.transactions
                 WHERE sell_dt_plan <= '{self.get_now()}'
                 AND status = 'bought'
                 """
@@ -567,19 +545,19 @@ class Trader:
 
                 sell_cost = self.trading_manager.quantum_sell(figi, lots)
                 sql = f"""
-                    UPDATE transactions
+                    UPDATE transaction.transactions
                     SET sell_dt_fact = '{self.get_now()}'
                     WHERE order_id = '{order_id}'
                     """
                 self.data_manager.common_sql_comand(sql)
                 sql = f"""
-                    UPDATE transactions
+                    UPDATE transaction.transactions
                     SET status = 'sold'
                     WHERE order_id = '{order_id}'
                     """
                 self.data_manager.common_sql_comand(sql)
                 sql = f"""
-                    UPDATE transactions
+                    UPDATE transaction.transactions
                     SET sell_cost = {sell_cost}
                     WHERE order_id = '{order_id}'
                     """
@@ -659,7 +637,7 @@ class Trader:
         Returns:
             np.ndarray: Массив идентификаторов новых ордеров.
         """
-        sql = "SELECT order_id FROM transactions WHERE execution_report_status = 'EXECUTION_REPORT_STATUS_NEW'"
+        sql = "SELECT order_id FROM transaction.transactions WHERE execution_report_status = 'EXECUTION_REPORT_STATUS_NEW'"
         return self.data_manager.common_sql_req(sql)["order_id"].values
 
     def update_order_statuses(self) -> None:
@@ -674,7 +652,7 @@ class Trader:
         new_orders = self.get_new_orders()
         for order_id in new_orders:
             order_status = self.trading_manager.get_order_status(order_id)
-            sql = f"UPDATE transactions SET execution_report_status = '{order_status}' WHERE order_id = '{order_id}'"
+            sql = f"UPDATE transaction.transactions SET execution_report_status = '{order_status}' WHERE order_id = '{order_id}'"
             self.data_manager.common_sql_comand(sql)
 
     def update_sell_orders(self) -> None:
@@ -700,13 +678,13 @@ class Trader:
                 == "EXECUTION_REPORT_STATUS_FILL"
             ):
                 sql = f"""
-                    UPDATE transactions
+                    UPDATE transaction.transactions
                     SET sell_cost = {self.trading_manager.quotation_to_float(sell_order_info.average_position_price)}
                     WHERE sell_order_id = '{sell_order_info.order_id}'
                     """
                 self.data_manager.common_sql_comand(sql)
                 sql = f"""
-                    UPDATE transactions
+                    UPDATE transaction.transactions
                     SET status = 'sold'
                     WHERE sell_order_id = '{sell_order_info.order_id}'
                     """
@@ -751,14 +729,14 @@ class Trader:
                 )
 
                 sql = f"""
-                    UPDATE transactions
+                    UPDATE transaction.transactions
                     SET status = 'sell_order_posted'
                     WHERE order_id = '{buy_order_id}'
                     """
                 self.data_manager.common_sql_comand(sql)
 
                 sql = f"""
-                    UPDATE transactions
+                    UPDATE transaction.transactions
                     SET sell_order_id = '{sell_order_info.order_id}'
                     WHERE order_id = '{buy_order_id}'
                     """
@@ -776,6 +754,7 @@ class Trader:
         """
         orders_bought = self.data_manager.get_orders_bought()
         for buy_order_id, estimated_price_change in orders_bought:
+            target_price_change = Decimal(estimated_price_change)+1
             with self.trading_manager.client(
                 self.trading_manager.token
             ) as client:
@@ -786,7 +765,7 @@ class Trader:
 
                 sell_price = invest.utils.quotation_to_decimal(
                     buy_order_info.average_position_price
-                ) * Decimal(estimated_price_change)
+                ) * target_price_change
                 min_price_increment = client.instruments.get_instrument_by(
                     id_type=invest.InstrumentIdType.INSTRUMENT_ID_TYPE_FIGI,
                     id=buy_order_info.figi,
@@ -804,6 +783,13 @@ class Trader:
                 sell_price_quotation = invest.utils.decimal_to_quotation(
                     Decimal(sell_price_decimal)
                 )
+                print(
+                    "="*10,"post_take_profits",'\n',
+                    f"price= {sell_price_quotation}",'\n',
+                    f"stop_price= {sell_price_quotation}",'\n',
+                    f"buy_order_info.average_position_price",buy_order_info.average_position_price,'\n',
+                    f"estimated_price_change",estimated_price_change,'\n',
+                )
 
                 sell_order_info = client.stop_orders.post_stop_order(
                     figi=buy_order_info.figi,
@@ -818,20 +804,20 @@ class Trader:
                 )
 
                 sql = f"""
-                    UPDATE transactions
+                    UPDATE transaction.transactions
                     SET status = 'take_profit_posted'
                     WHERE order_id = '{buy_order_id}'
                     """
                 self.data_manager.common_sql_comand(sql)
 
                 sql = f"""
-                    UPDATE transactions
+                    UPDATE transaction.transactions
                     SET sell_order_id = '{sell_order_info.stop_order_id}'
                     WHERE order_id = '{buy_order_id}'
                     """
                 self.data_manager.common_sql_comand(sql)
 
-    def post_sell_rancid_orders(self, aquisition_hold_days: int) -> None:
+    def post_sell_rancid_orders(self) -> None:
         """Размещает рыночные ордера на продажу устаревших позиций.
 
         Определяет "залежавшиеся" ордера по дате покупки и времени удержания,
@@ -845,9 +831,7 @@ class Trader:
             None
         """
         print("post_sell_rancid_orders")
-        orders_rancid = self.data_manager.get_orders_rancid(
-            aquisition_hold_days
-        )
+        orders_rancid = self.data_manager.get_orders_rancid()
         for order_id, buy_dt, lots_requested in orders_rancid:
             with self.trading_manager.client(
                 self.trading_manager.token
@@ -870,35 +854,35 @@ class Trader:
                     sell_order_info.total_order_amount
                 )
                 sql = f"""
-                    UPDATE transactions
+                    UPDATE transaction.transactions
                     SET status = 'rancid_sold_market'
                     WHERE order_id = '{order_id}'
                     """
                 self.data_manager.common_sql_comand(sql)
 
                 sql = f"""
-                    UPDATE transactions
+                    UPDATE transaction.transactions
                     SET sell_order_id = '{sell_order_info.order_id}'
                     WHERE order_id = '{order_id}'
                     """
                 self.data_manager.common_sql_comand(sql)
 
                 sql = f"""
-                    UPDATE transactions
+                    UPDATE transaction.transactions
                     SET executed_order_price = '{total_order_amount}'
                     WHERE order_id = '{order_id}'
                     """
                 self.data_manager.common_sql_comand(sql)
 
                 sql = f"""
-                    UPDATE transactions
+                    UPDATE transaction.transactions
                     SET sell_cost = {round(total_order_amount/buy_order_info.lots_executed,1)}
                     WHERE order_id = '{order_id}'
                     """
                 self.data_manager.common_sql_comand(sql)
 
                 sql = f"""
-                    UPDATE transactions
+                    UPDATE transaction.transactions
                     SET sell_dt_fact = '{now}'
                     WHERE order_id = '{order_id}'
                     """

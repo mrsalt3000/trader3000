@@ -1250,7 +1250,7 @@ class DataManager:
         sql = """
         SELECT
             sell_order_id
-        FROM transactions 
+        FROM transaction.transactions 
         WHERE status = 'sell_order_posted'
             AND direction = 'ORDER_DIRECTION_BUY'
         """
@@ -1261,7 +1261,6 @@ class DataManager:
 
     def get_orders_rancid(
         self,
-        days_treshold: int = 0,
     ) -> list | np.ndarray:
         """
         Получить ордера, у которых истек предполагаемый срок продажи (просроченные ордера).
@@ -1277,16 +1276,13 @@ class DataManager:
             list | np.ndarray: Массив данных ордеров (order_id, buy_dt, lots_requested) либо пустой список,
                             если таких ордеров нет.
         """
-        date_treshold = str(
-            datetime.datetime.now().date()
-            - datetime.timedelta(days=days_treshold)
-        )
+        date_treshold = str(datetime.datetime.now().date())
         sql = f"""
         SELECT
             order_id
             ,buy_dt
             ,lots_requested
-        FROM transactions 
+        FROM transaction.transactions 
         WHERE execution_report_status in ('EXECUTION_REPORT_STATUS_FILL','EXECUTION_REPORT_STATUS_PARTIALLYFILL')
             AND direction = 'ORDER_DIRECTION_BUY'
             AND status = 'take_profit_posted'
@@ -1346,7 +1342,7 @@ class DataManager:
         SELECT
             order_id
             ,estimated_price_change
-        FROM transactions 
+        FROM transaction.transactions 
         WHERE execution_report_status in ('EXECUTION_REPORT_STATUS_FILL','EXECUTION_REPORT_STATUS_PARTIALLYFILL')
             AND direction = 'ORDER_DIRECTION_BUY'
             AND status = 'take_profit_posted'
