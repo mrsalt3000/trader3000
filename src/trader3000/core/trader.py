@@ -4,6 +4,7 @@ import pickle
 import time
 from decimal import Decimal
 from typing import Any, Sequence, Union
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -14,8 +15,7 @@ from tinkoff.invest import Client
 from .data_management import DataManager
 from .tinkoff_trading import TinkoffTrading
 
-load_dotenv()  # загружает .env файл
-#test dev token
+load_dotenv()
 
 class Trader:
     def __init__(
@@ -45,6 +45,7 @@ class Trader:
         self.buy_increment = buy_increment
         self.date_updated_schedules = datetime.datetime.now().date()
         self.date_agents_loaded = datetime.datetime.now().date()
+        self.TZ = os.getenv("TZ")
 
     def unpickle(self, path: str) -> Any:
         """Загружает и возвращает объект из файла с помощью pickle.
@@ -257,7 +258,7 @@ class Trader:
         Raises:
             ValueError: Если mode не 'str' или 'dt'.
         """
-        now = datetime.datetime.now() - datetime.timedelta(hours=3)
+        now = datetime.datetime.now(ZoneInfo(self.TZ))
         if mode == "str":
             return str(now)[:19]
         elif mode == "dt":

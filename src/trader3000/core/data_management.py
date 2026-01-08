@@ -19,6 +19,7 @@ import pandas as pd
 import sqlalchemy
 from dotenv import load_dotenv
 from sqlalchemy import text
+from zoneinfo import ZoneInfo
 
 from .indicators_calculator import IndicatorsCalculator
 
@@ -61,8 +62,10 @@ class DataManager:
         self.CANDLES_SART_DATE = datetime.datetime(2019, 1, 1)  # 2019
         self.trading_manager = trading_manager
         self.psql_main_creds = os.getenv("DATABASE_URL")
+        self.TZ = os.getenv("TZ")
         if trading_manager:
             pass
+            
 
     def get_sql_table_info(self, table_name):
         return f"""
@@ -940,10 +943,9 @@ class DataManager:
                 day["start_time"][:19], "%Y-%m-%d %H:%M:%S"
             )
             for t in range(timesteps_within + 1):
-                timeline.append(
-                    start_time
-                    + datetime.timedelta(seconds=timestep_seconds * t)
-                )
+                item = (start_time
+                    + datetime.timedelta(seconds=timestep_seconds * t)).replace(tzinfo=ZoneInfo("UTC"))
+                timeline.append(item)
         return timeline
 
     def get_target_sell_dt(
@@ -970,6 +972,7 @@ class DataManager:
         Returns:
             datetime.datetime: Целевая дата и время продажи.
         """
+        buy_dt = buy_dt.astimezone(ZoneInfo("UTC"))
         if resolution == "hour":
             timestep_seconds = 3600
         elif resolution == "15min":
@@ -989,7 +992,7 @@ class DataManager:
         timeline = self.get_timeline(schedule, timestep_seconds)
         timeline = list(filter(lambda x: x >= buy_dt, timeline))
         if len(timeline) > steps:
-            sell_date = timeline[steps]
+            sell_date = timeline[steps - 1]
         else:
             sell_date = datetime.datetime(2100, 1, 1, 1)
         return sell_date
