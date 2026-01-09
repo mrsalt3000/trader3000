@@ -5,6 +5,7 @@ import time
 from decimal import Decimal
 from typing import Any, Sequence, Union
 from zoneinfo import ZoneInfo
+from IPython.display import clear_output
 
 import numpy as np
 import pandas as pd
@@ -14,6 +15,7 @@ from tinkoff.invest import Client
 
 from .data_management import DataManager
 from .tinkoff_trading import TinkoffTrading
+from .model_manager import ModelManager
 
 load_dotenv()
 
@@ -24,7 +26,7 @@ class Trader:
         path_agents = "models",
         mode="prod",
         quant_cost=300,
-        delay_seconds=15,
+        delay_seconds=120,
         buy_increment=1.0005,
         is_first_cycle=True,
     ):
@@ -46,6 +48,7 @@ class Trader:
         self.date_updated_schedules = datetime.datetime.now().date()
         self.date_agents_loaded = datetime.datetime.now().date()
         self.TZ = os.getenv("TZ")
+        self.model_manager = ModelManager()
 
     def unpickle(self, path: str) -> Any:
         """Загружает и возвращает объект из файла с помощью pickle.
@@ -888,3 +891,94 @@ class Trader:
                     WHERE order_id = '{order_id}'
                     """
                 self.data_manager.common_sql_comand(sql)
+
+    def trader_routine_preparation(self):
+        self.data_manager.update_schedules()
+        
+        paths = self.model_manager.get_classifiers_paths()
+        tickers_by_models = [i.split("_")[1] for i in paths]
+        print(len(tickers_by_models),"models available")
+        
+        tickers_for_action = []
+        for ticker_by_models in tickers_by_models:
+            schedule_name = self.trading_manager.get_ticker_info(ticker_by_models)["schedule"].upper()
+            is_trading_day = self.data_manager.is_trading_day(schedule_name)
+            if is_trading_day:
+                tickers_for_action.append(ticker_by_models)
+        
+        print(len(tickers_for_action),"tickers in market today")
+        if len(tickers_for_action)>0:
+            self.data_manager.download_candles_delta([ticker.upper() for ticker in tickers_for_action])
+            self.data_manager.recalculate_indicators(tickers = tickers_for_action)
+            
+        recomendations = self.model_manager.get_trading_recomendations(self.path_agents)
+        
+        print(len(recomendations),"tickers available to buy")
+        return recomendations
+
+    def trader_routine(self, num_quants = 1):
+        print("Trader routine started:",self.get_now())
+        
+        while True:
+            clear_output()
+            print("="*20,"Iteration",self.get_now(),"="*20)
+            # Обработка прошлых действий
+            self.post_sell_rancid_orders()
+            self.update_order_statuses()
+            self.update_sell_orders()
+            self.post_take_profits()
+            
+            #Поиск, что купить
+            schedule_name = "placeholder" #Чтобы trader.sleep_till_next_iter дал задержку хотя бы час
+            recomendations = self.trader_routine_preparation()
+            for recomendation in recomendations:
+                
+                ticker = recomendation["ticker"]
+                print("\n","="*10,ticker,"="*10)
+                estimated_price_change = recomendation["estimated_price_change"]
+                hold_tics = recomendation["hold_tics"]
+                model_id = recomendation["model_id"]
+                
+                last_candle_value = self.data_manager.get_last_price(
+                ticker=ticker, resolution='hour'
+                )
+                transaction_from_trading_manager = (
+                    self.trading_manager.quantum_buy(
+                        ticker,
+                        price=last_candle_value * self.buy_increment,
+                        n_quants=num_quants,
+                    )
+                )
+            
+                schedule_name = self.trading_manager.get_ticker_info(ticker)["schedule"].upper()
+                fact_dt = self.data_manager.get_candles_last_dt(
+                                            ticker=ticker,
+                                            time_step_resolution="hour",
+                                        )
+                estimated_sell_dt = self.data_manager.get_target_sell_dt(
+                                                schedule_name=schedule_name,
+                                                buy_dt=fact_dt.replace(tzinfo=None),
+                                                resolution="hour",
+                                                steps=hold_tics,
+                                            )
+                estimated_sell_date = (estimated_sell_dt+datetime.timedelta(days=1)).date()
+            
+                print(f"Bought {ticker}: {num_quants} quants")
+                print(f"estimated_sell_date: {estimated_sell_date}",f"estimated_price_change: {estimated_price_change}")
+                transaction_meta = {
+                    "buy_dt": self.get_now(),
+                    "num_quants": num_quants,
+                    "sell_dt_fact": datetime.date(2100, 1, 1),
+                    "status": "bought",
+                    "quant_cost": self.quant_cost,
+                    "sell_cost": None,
+                    "model_id": model_id,
+                    "estimated_price_change": estimated_price_change,
+                    "estimated_sell_date": estimated_sell_date,
+                }
+            
+                transaction = transaction_meta | transaction_from_trading_manager
+                self.data_manager.save_transaction(transaction)
+                time.sleep(1)
+            self.sleep_till_next_iter(schedule_name) #schedule_name
+        
