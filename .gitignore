@@ -1,4 +1,7 @@
-# Документация Sphinx - САМОЕ ВАЖНОЕ!
+# Models
+*.pickle
+
+# Документация Sphinx
 docs/build/
 
 # Python

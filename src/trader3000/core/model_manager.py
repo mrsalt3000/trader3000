@@ -11,19 +11,23 @@ import random
 
 from .data_management import DataManager
 from .tinkoff_trading import TinkoffTrading
+import sys
+from pathlib import Path
+MODELS_PATH = Path("/models")  # ← Volume монтируется сюда!
 
 
 class ModelManager:
     def __init__(
         self,
-        models_root = "models"
+        models_root = MODELS_PATH
     ):
         self.trading_manager = TinkoffTrading(
             os.getenv("TINVEST_TOKEN"), Client
         )
         self.data_manager = DataManager(self.trading_manager)
         self.models_root = models_root
-
+        print("self.models_root",self.models_root)
+        print("os.listdir(self.models_root)",os.listdir(self.models_root))
 
     def get_experiment_result(self, ticker, shift, increment_p,start_treshold, test_treshold):
         indicators = self.data_manager.common_sql_req(f"SELECT * FROM datasets.{ticker}_hour_total_indicators")
@@ -93,7 +97,7 @@ class ModelManager:
             "hold_tics":hold_tics,
             "model_type": model_type,
         }
-        with open(f"models/{model_type}_{ticker}_{date_created}.pickle", "wb") as file:
+        with open(f"{self.models_root}/{model_type}_{ticker}_{date_created}.pickle", "wb") as file:
             pickle.dump(data,file)
     
     def unpickle_model(self, path):
@@ -127,7 +131,8 @@ class ModelManager:
         last_data = self.get_last_data(ticker, features)
         return bool(model.predict(last_data)[0] == 1)
     
-    def get_trading_recomendations(self, path_root = "models"):
+    def get_trading_recomendations(self):
+        path_root = self.models_root
         recomendations = []
         paths = self.get_classifiers_paths()
         for path in paths:
@@ -154,7 +159,7 @@ class ModelManager:
         if test_treshold == None:
             test_treshold = str(datetime.datetime.now() - datetime.timedelta(days=365 //2))[:10]
            
-        path_root = "models"
+        path_root = self.models_root
         process_stats=[]
         
         print(str(datetime.datetime.now())[:10])

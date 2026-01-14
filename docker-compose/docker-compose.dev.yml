@@ -26,6 +26,8 @@ services:
     stdin_open: true
     tty: true
     environment:
+      - TZ=${TZ}
+      - PYTHONUNBUFFERED=1
       - GITHUB_USER=${GITHUB_USER}
       - GITHUB_PAT=${GITHUB_PAT}
       - JUPYTER_ENABLE_LAB=yes
@@ -40,14 +42,15 @@ services:
       - E:/work/2. trader3000/jupyter:/home/coder/project  # Код проекта
       - vscode-data:/home/coder/.local/share/code-server  # Настройки VS Code
     environment:
-      - CODE_SERVER_PASSWORD=none    # Пустой пароль
-    command: --bind-addr 0.0.0.0:8080 
+      - TZ=${TZ}
+    command: --bind-addr 0.0.0.0:8080 --auth none
     restart: unless-stopped
   postgres:
     image: postgres:13
     env_file:
       - .env
     environment:
+      TZ: ${TZ}
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}

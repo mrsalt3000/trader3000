@@ -1,0 +1,41 @@
+services:
+  jupyter:
+    image: mrsalt3000/trader3000:dev-latest
+    ports:
+      - "8888:8888"   # JupyterLab
+    volumes:
+      - E:/work/2. trader3000/jupyter:/home/jovyan/work
+    command:
+      - sh
+      - -c
+      - |
+        cd /home/jovyan/work && \
+        rm -rf trader3000 && \
+        git clone https://${GITHUB_USER}:${GITHUB_PAT}@github.com/${GITHUB_USER}/trader3000.git trader3000 && \
+        cd trader3000 && git pull origin main && \
+        cd /home/jovyan/work && \
+        jupyter lab --allow-root --no-browser --ip=0.0.0.0 --port=8888 \
+          --ServerApp.token='' --ServerApp.password='' \
+          --ServerApp.allow_origin='*' --ServerApp.disable_check_xsrf=True
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    working_dir: /home/jovyan/work
+    stdin_open: true
+    tty: true
+    environment:
+      - TZ=${TZ}
+      - PYTHONUNBUFFERED=1
+      - GITHUB_USER=${GITHUB_USER}
+      - GITHUB_PAT=${GITHUB_PAT}
+      - JUPYTER_ENABLE_LAB=yes
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - TINVEST_TOKEN=${TINVEST_TOKEN}
+    networks:
+      - trader_prod_net
+
+networks:
+  trader_prod_net:
+    external: true

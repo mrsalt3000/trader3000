@@ -5,7 +5,7 @@ import time
 from decimal import Decimal
 from typing import Any, Sequence, Union
 from zoneinfo import ZoneInfo
-from IPython.display import clear_output
+#from IPython.display import clear_output
 
 import numpy as np
 import pandas as pd
@@ -25,7 +25,7 @@ class Trader:
         timestep_resolution = "hour",
         path_agents = "models",
         mode="prod",
-        quant_cost=300,
+        quant_cost=1000,
         delay_seconds=120,
         buy_increment=1.0005,
         is_first_cycle=True,
@@ -893,6 +893,7 @@ class Trader:
                 self.data_manager.common_sql_comand(sql)
 
     def trader_routine_preparation(self):
+        print("trader_routine_preparation")
         self.data_manager.update_schedules()
         
         paths = self.model_manager.get_classifiers_paths()
@@ -911,7 +912,7 @@ class Trader:
             self.data_manager.download_candles_delta([ticker.upper() for ticker in tickers_for_action])
             self.data_manager.recalculate_indicators(tickers = tickers_for_action)
             
-        recomendations = self.model_manager.get_trading_recomendations(self.path_agents)
+        recomendations = self.model_manager.get_trading_recomendations()
         
         print(len(recomendations),"tickers available to buy")
         return recomendations
@@ -920,7 +921,7 @@ class Trader:
         print("Trader routine started:",self.get_now())
         
         while True:
-            clear_output()
+            #clear_output()
             print("="*20,"Iteration",self.get_now(),"="*20)
             # Обработка прошлых действий
             self.post_sell_rancid_orders()

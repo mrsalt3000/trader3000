@@ -49,7 +49,7 @@ class TinkoffTrading:
         self.QUANTUM_PRICE = (
             params.get("QUANTUM_PRICE")
             if params.get("QUANTUM_PRICE")
-            else 3000
+            else 1000
         )
 
         print("account_name:", self.account_name)
@@ -460,6 +460,8 @@ class TinkoffTrading:
             ValueError: Invalid price rounding or quotation conversion.
             Exception: Order API failures, network issues.
         """
+        #Кажется, в этом методе вообще не надо подавать на вход цену, потому что он сам определяет цену покупки
+
         last_price = self.get_last_price(ticker)
         lot_quantity = self.get_lot_quantity(ticker)
         buy_price = last_price * self.BUY_INCREASE
@@ -469,30 +471,29 @@ class TinkoffTrading:
         lots_to_buy = int(self.QUANTUM_PRICE // min_buy_amount)
         figi = self.get_figi_by_ticker(ticker)
         print("lots_to_buy:",lots_to_buy)
-        price = self.round_by_min_price_increment(price, ticker)
+        price = self.round_by_min_price_increment(buy_price, ticker)
         price_quotation = self.float_to_quotation(price)
         # price_quotation.nano = int(str(price_quotation.nano)[:1])#+"0"*1
-        print(ticker, price)
         rubles_available = self.get_rubles_available()
         order_total_amount = min_buy_amount * lots_to_buy * n_quants
         is_enough_money = order_total_amount < rubles_available
         print(
-            "quantum_buy\n",
-            "ticker",
+            "="*10,"quantum_buy\n",
+            "\nticker",
             ticker,
-            "price",
+            "\nprice",
             price,
-            "n_quants",
+            "\nn_quants",
             n_quants,
-            "last_price",
+            "\nlast_price",
             last_price,
-            "lot_quantity",
+            "\nlot_quantity",
             lot_quantity,
-            "buy_price",
+            "\nbuy_price",
             buy_price,
-            "min_buy_amount",
+            "\nmin_buy_amount",
             min_buy_amount,
-            "rubles_available",
+            "\nrubles_available",
             rubles_available,
             # "\n"
         )
