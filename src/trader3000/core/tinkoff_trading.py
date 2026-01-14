@@ -16,7 +16,7 @@ from tinkoff.invest import (
     PostOrderResponse,
 )
 from tinkoff.invest.schemas import Quotation
-
+from tinkoff.invest.utils import quotation_to_decimal
 
 class Transaction(TypedDict):
     order_id: str
@@ -314,7 +314,7 @@ class TinkoffTrading:
             ValueError: If nano conversion fails or Quotation malformed.
             AttributeError: If inp lacks units/nano attributes.
         """
-        return inp.units + (inp.nano / 10 ** len(str(inp.nano)))
+        return float(quotation_to_decimal(inp))
 
     def get_portfolio(self) -> Dict[str, Any]:
         """
@@ -472,6 +472,7 @@ class TinkoffTrading:
         figi = self.get_figi_by_ticker(ticker)
         print("lots_to_buy:",lots_to_buy)
         price = self.round_by_min_price_increment(buy_price, ticker)
+        print("self.round_by_min_price_increment(buy_price, ticker):",price)
         price_quotation = self.float_to_quotation(price)
         # price_quotation.nano = int(str(price_quotation.nano)[:1])#+"0"*1
         rubles_available = self.get_rubles_available()
@@ -830,6 +831,10 @@ class TinkoffTrading:
             )
         )[0]["min_price_increment"]
         min_price_increment = self.quotation_to_float(min_price_increment)
+
+        print("min_price_increment",min_price_increment)
+        print("math.ceil(price / min_price_increment) * min_price_increment",math.ceil(price / min_price_increment) * min_price_increment)
+        print("len(str(min_price_increment))",len(str(min_price_increment)))
         return round(
             math.ceil(price / min_price_increment) * min_price_increment,
             len(str(min_price_increment)),
