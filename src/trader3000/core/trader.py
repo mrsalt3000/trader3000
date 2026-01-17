@@ -240,7 +240,7 @@ class Trader:
             )
         except:
             print("Failed to get schedule info. Sleeping 1 hour")
-            seconds_to_sleep = 60*60
+            seconds_to_sleep = 60*57
         # print(seconds_to_sleep)
         time.sleep(seconds_to_sleep)
 
@@ -924,9 +924,10 @@ class Trader:
             #clear_output()
             print("="*20,"Iteration",self.get_now(),"="*20)
             # Обработка прошлых действий
-            self.post_sell_rancid_orders()
             self.update_order_statuses()
             self.update_sell_orders()
+            self.post_sell_rancid_orders()
+
             self.post_take_profits()
             
             #Поиск, что купить

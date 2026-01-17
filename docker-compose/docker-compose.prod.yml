@@ -48,13 +48,7 @@ services:
       retries: 5
     volumes:
     - postgres_data:/var/lib/postgresql/data
-    # networks:
-    #   - trader_prod_net
 
 volumes:
   postgres_data:
   models:
-
-# networks:
-#   trader_prod_net:
-#     name: trader3000_prod_net
