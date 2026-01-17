@@ -1,6 +1,6 @@
 import datetime
+import os
 import math
-import uuid
 from datetime import timedelta
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple, TypedDict, cast
@@ -46,11 +46,7 @@ class TinkoffTrading:
         self.account_id = self.get_account_name()[0]
         self.account_name = self.get_account_name()[1]
         self.BUY_INCREASE = 1.005
-        self.QUANTUM_PRICE = (
-            params.get("QUANTUM_PRICE")
-            if params.get("QUANTUM_PRICE")
-            else 1000
-        )
+        self.QUANT_COST = os.getenv("QUANT_COST")
 
         print("account_name:", self.account_name)
         # self.EXPIRATION_TYPE = StopOrderExpirationType.STOP_ORDER_EXPIRATION_TYPE_GOOD_TILL_DATE
@@ -468,7 +464,7 @@ class TinkoffTrading:
         min_buy_amount = buy_price * lot_quantity
         print("quantum_buy:","min_buy_amount:",min_buy_amount)
 
-        lots_to_buy = int(self.QUANTUM_PRICE // min_buy_amount)
+        lots_to_buy = int(self.QUANT_COST // min_buy_amount)
         figi = self.get_figi_by_ticker(ticker)
         print("lots_to_buy:",lots_to_buy)
         price = self.round_by_min_price_increment(buy_price, ticker)

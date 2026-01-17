@@ -63,10 +63,6 @@ class DataManager:
         self.trading_manager = trading_manager
         self.psql_main_creds = os.getenv("DATABASE_URL")
         self.TZ = os.getenv("TZ")
-        if trading_manager:
-            pass
-        #print("DATABASE_URL:",self.psql_main_creds)
-            
 
     def get_sql_table_info(self, table_name):
         return f"""

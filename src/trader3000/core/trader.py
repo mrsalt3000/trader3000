@@ -23,19 +23,15 @@ class Trader:
     def __init__(
         self,
         timestep_resolution = "hour",
-        path_agents = "models",
-        mode="prod",
-        quant_cost=1000,
         delay_seconds=120,
         buy_increment=1.0005,
         is_first_cycle=True,
     ):
-        assert mode in ["test", "prod"]
+        quant_cost=os.getenv("QUANT_COST"),
         TOKEN = os.getenv("TINVEST_TOKEN")
         self.quant_cost = quant_cost
-        self.path_agents = path_agents
         self.trading_manager = TinkoffTrading(
-            TOKEN, Client, {"QUANTUM_PRICE": quant_cost}
+            TOKEN, Client, {"QUANT_COST": quant_cost}
         )
         self.data_manager = DataManager(self.trading_manager)
         self.timestep_resolution = timestep_resolution
@@ -43,7 +39,6 @@ class Trader:
         self.last_timestep = "1970-01-01"
         self.delay_seconds = delay_seconds
 
-        self.mode = mode
         self.buy_increment = buy_increment
         self.date_updated_schedules = datetime.datetime.now().date()
         self.date_agents_loaded = datetime.datetime.now().date()
@@ -653,6 +648,7 @@ class Trader:
         Returns:
             None
         """
+        print("update_order_statuses")
         new_orders = self.get_new_orders()
         for order_id in new_orders:
             order_status = self.trading_manager.get_order_status(order_id)
@@ -668,6 +664,7 @@ class Trader:
         Returns:
             None
         """
+        print("update_sell_orders")
         new_sell_orders = self.data_manager.get_orders_sell_order_posted()
         for [sell_order_id] in new_sell_orders:
             with self.trading_manager.client(
