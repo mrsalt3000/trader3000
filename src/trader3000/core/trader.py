@@ -851,44 +851,67 @@ class Trader:
                     account_id=self.trading_manager.account_id,
                     order_type=invest.schemas.OrderType.ORDER_TYPE_BESTPRICE,
                 )
+                print("sell_order_info.total_order_amount:",sell_order_info.total_order_amount)
                 total_order_amount = self.trading_manager.quotation_to_float(
                     sell_order_info.total_order_amount
                 )
-                sql = f"""
-                    UPDATE transaction.transactions
-                    SET status = 'rancid_sold_market'
-                    WHERE order_id = '{order_id}'
-                    """
-                self.data_manager.common_sql_comand(sql)
+                print("got total_order_amount successfully")
 
-                sql = f"""
-                    UPDATE transaction.transactions
-                    SET sell_order_id = '{sell_order_info.order_id}'
-                    WHERE order_id = '{order_id}'
-                    """
-                self.data_manager.common_sql_comand(sql)
+                try:
+                    sql = f"""
+                        UPDATE transaction.transactions
+                        SET status = 'rancid_sold_market'
+                        WHERE order_id = '{order_id}'
+                        """
+                    self.data_manager.common_sql_comand(sql)
+                    print("transaction.transactions status set successfully")
+                except Exception as e:
+                    print("Error setting transaction.transactions status\n",e)
 
-                sql = f"""
-                    UPDATE transaction.transactions
-                    SET executed_order_price = '{total_order_amount}'
-                    WHERE order_id = '{order_id}'
-                    """
-                self.data_manager.common_sql_comand(sql)
+                try:
+                    sql = f"""
+                        UPDATE transaction.transactions
+                        SET sell_order_id = '{sell_order_info.order_id}'
+                        WHERE order_id = '{order_id}'
+                        """
+                    self.data_manager.common_sql_comand(sql)
+                    print("transaction.transactions sell_order_id set successfully")
+                except Exception as e:
+                    print("Error setting transaction.transactions sell_order_id\n",e)
 
-                sql = f"""
-                    UPDATE transaction.transactions
-                    SET sell_cost = {round(total_order_amount/buy_order_info.lots_executed,1)}
-                    WHERE order_id = '{order_id}'
-                    """
-                self.data_manager.common_sql_comand(sql)
+                try:
+                    sql = f"""
+                        UPDATE transaction.transactions
+                        SET executed_order_price = '{total_order_amount}'
+                        WHERE order_id = '{order_id}'
+                        """
+                    self.data_manager.common_sql_comand(sql)
+                    print("transaction.executed_order_price executed_order_price set successfully")
+                except Exception as e:
+                    print("Error setting transaction.transactions executed_order_price\n",e)
+                    
+                try:
+                    sql = f"""
+                        UPDATE transaction.transactions
+                        SET sell_cost = {round(total_order_amount/buy_order_info.lots_executed,1)}
+                        WHERE order_id = '{order_id}'
+                        """
+                    self.data_manager.common_sql_comand(sql)
+                    print("transaction.transactions status set successfully")
+                except Exception as e:
+                    print("Error setting transaction.transactions sell_cost\n",e)
 
-                sql = f"""
-                    UPDATE transaction.transactions
-                    SET sell_dt_fact = '{now}'
-                    WHERE order_id = '{order_id}'
-                    """
-                self.data_manager.common_sql_comand(sql)
-
+                try:
+                    sql = f"""
+                        UPDATE transaction.transactions
+                        SET sell_dt_fact = '{now}'
+                        WHERE order_id = '{order_id}'
+                        """
+                    self.data_manager.common_sql_comand(sql)
+                    print("transaction.transactions sell_dt_fact set successfully")
+                except Exception as e:
+                    print("Error setting transaction.transactions sell_dt_fact\n",e)
+                    
     def trader_routine_preparation(self):
         print("trader_routine_preparation")
         self.data_manager.update_schedules()
