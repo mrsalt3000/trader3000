@@ -27,7 +27,7 @@ class Trader:
         buy_increment=1.0005,
         is_first_cycle=True,
     ):
-        quant_cost=os.getenv("QUANT_COST"),
+        quant_cost=int(os.getenv("QUANT_COST")),
         TOKEN = os.getenv("TINVEST_TOKEN")
         self.quant_cost = quant_cost
         self.trading_manager = TinkoffTrading(
@@ -911,7 +911,7 @@ class Trader:
                     print("transaction.transactions sell_dt_fact set successfully")
                 except Exception as e:
                     print("Error setting transaction.transactions sell_dt_fact\n",e)
-                    
+
     def trader_routine_preparation(self):
         print("trader_routine_preparation")
         self.data_manager.update_schedules()

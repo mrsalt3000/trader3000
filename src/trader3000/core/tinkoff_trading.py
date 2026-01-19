@@ -46,7 +46,7 @@ class TinkoffTrading:
         self.account_id = self.get_account_name()[0]
         self.account_name = self.get_account_name()[1]
         self.BUY_INCREASE = 1.005
-        self.QUANT_COST = os.getenv("QUANT_COST")
+        self.QUANT_COST = int(os.getenv("QUANT_COST"))
 
         print("account_name:", self.account_name)
         # self.EXPIRATION_TYPE = StopOrderExpirationType.STOP_ORDER_EXPIRATION_TYPE_GOOD_TILL_DATE
