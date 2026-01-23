@@ -23,7 +23,7 @@ class Trader:
     def __init__(
         self,
         timestep_resolution = "hour",
-        delay_seconds=120,
+        delay_seconds=120, #меньше 2 минут - иногда свечи от апи не успевают обновиться
         buy_increment=1.0005,
         is_first_cycle=True,
     ):
@@ -939,19 +939,19 @@ class Trader:
 
     def trader_routine(self, num_quants = 1):
         print("Trader routine started:",self.get_now())
-        
+        schedule_name = "moex_mrng_evng_e_wknd_dlr".upper() #расписание по умолчанию. Если торговли не будет, используется чтобы  найти ближайший рабочтий час биржи   
         while True:
             #clear_output()
             print("="*20,"Iteration",self.get_now(),"="*20)
             # Обработка прошлых действий
             self.update_order_statuses()
             self.update_sell_orders()
-            self.post_sell_rancid_orders()
+            #self.post_sell_rancid_orders()
 
             self.post_take_profits()
             
             #Поиск, что купить
-            schedule_name = "placeholder" #Чтобы trader.sleep_till_next_iter дал задержку хотя бы час
+
             recomendations = self.trader_routine_preparation()
             for recomendation in recomendations:
                 
