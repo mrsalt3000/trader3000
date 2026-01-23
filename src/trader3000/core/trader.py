@@ -946,7 +946,8 @@ class Trader:
             # Обработка прошлых действий
             self.update_order_statuses()
             self.update_sell_orders()
-            #self.post_sell_rancid_orders()
+            self.update_tp_orders()
+            self.post_sell_rancid_orders()
 
             self.post_take_profits()
             
@@ -1004,3 +1005,35 @@ class Trader:
                 time.sleep(1)
             self.sleep_till_next_iter(schedule_name) #schedule_name
         
+
+    def update_tp_orders(self):
+        print("update_tp_orders")
+        sql = """
+        SELECT
+            sell_order_id
+        FROM transaction.transactions
+        WHERE status IN ('take_profit_posted', 'STOP_ORDER_STATUS_ACTIVE')
+        """
+        sell_order_ids = self.data_manager.common_sql_req(sql)["sell_order_id"].values
+        print(len(sell_order_ids),"stop orders to_update")
+        
+        with self.trading_manager.client(
+            self.trading_manager.token
+        ) as client:
+            stop_orders = client.stop_orders.get_stop_orders(
+                account_id = self.trading_manager.account_id, 
+                from_ = datetime.datetime(2026,1,1),
+                to = datetime.datetime.now(),
+                status = invest.schemas.StopOrderStatusOption.STOP_ORDER_STATUS_ALL
+            )
+        
+        stor_order_statuses = [{"id":i.stop_order_id, "status":i.status.name} for i in stop_orders.stop_orders if i.stop_order_id in sell_order_ids]
+        
+        for status in stor_order_statuses:
+            sql = f"""
+                UPDATE transaction.transactions
+                SET status = '{status["status"]}'
+                WHERE sell_order_id = '{status["id"]}'
+            """
+            self.data_manager.common_sql_comand(sql)
+        print("success")
