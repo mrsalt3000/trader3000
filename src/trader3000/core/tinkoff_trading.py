@@ -559,7 +559,7 @@ class TinkoffTrading:
         else:
             skip_reason = (
                 "Not enough money, skipped"
-                if is_enough_money
+                if not is_enough_money
                 else "Too small quant price, skipped"
             )
             transaction = {

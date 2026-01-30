@@ -1283,9 +1283,9 @@ class DataManager:
             ,buy_dt
             ,lots_requested
         FROM transaction.transactions 
-        WHERE execution_report_status in ('EXECUTION_REPORT_STATUS_FILL','EXECUTION_REPORT_STATUS_PARTIALLYFILL')
+        WHERE execution_report_status IN ('EXECUTION_REPORT_STATUS_FILL','EXECUTION_REPORT_STATUS_PARTIALLYFILL')
             AND direction = 'ORDER_DIRECTION_BUY'
-            AND status = 'take_profit_posted'
+            AND status IN  ('take_profit_posted', 'STOP_ORDER_STATUS_ACTIVE')
             AND estimated_sell_date <= '{date_treshold}'
         """
         result = self.common_sql_req(sql)
