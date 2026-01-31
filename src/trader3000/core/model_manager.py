@@ -220,7 +220,6 @@ class ModelManager:
             increment = -0.02,
             start_treshold = None,
             test_treshold = None,
-            tickers = [],
             days_train_rate = 1.5,
             days_test_rate = 2,
             ):
@@ -242,7 +241,7 @@ class ModelManager:
                 increment = increment,
                 start_treshold = start_treshold,
                 test_treshold = test_treshold,
-                tickers = tickers,
+                tickers = target_tickers,
                 days_train_rate = days_train_rate,
                 days_test_rate = days_test_rate,
                 )
