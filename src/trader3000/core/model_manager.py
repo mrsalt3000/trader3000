@@ -213,7 +213,7 @@ class ModelManager:
     
     def create_classifiers_bottomline(
             self, 
-            mode = "add"
+            mode = "add",
             f1_treshold = .90,
             support_treshold_rate = 4,
             shift = 50,
