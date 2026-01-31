@@ -8,6 +8,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 from sklearn.metrics import RocCurveDisplay  # для графика
 import datetime
 import random
+from zoneinfo import ZoneInfo
 
 from .data_management import DataManager
 from .tinkoff_trading import TinkoffTrading
@@ -127,12 +128,19 @@ class ModelManager:
     def get_classifiers_paths(self, model_type = "topline"):
         return [i for i in os.listdir(self.models_root) if i.endswith(".pickle") and i.startswith(f"classifier_{model_type}")]
     
-    def get_last_data(self, ticker, features):
+    def get_last_data(self, ticker, features, last_candle_check = True):
         features_sql = "\n,".join(i for i in features)
+        if last_candle_check:
+            target_dt = str(datetime.datetime.now(ZoneInfo("UTC")).replace(minute=0, second=0, microsecond=0))# - datetime.timedelta(hours = 1)
+            dt_filter = f"WHERE date = '{target_dt}'"
+        else:
+            dt_filter = ""
+
         sql = f"""
         SELECT 
             {features_sql}
             FROM datasets.{ticker}_hour_total_indicators
+            {dt_filter}
             ORDER BY date DESC
             LIMIT 1
         """
@@ -140,7 +148,13 @@ class ModelManager:
     
     def get_recomendation(self, model, ticker, features):
         last_data = self.get_last_data(ticker, features)
-        return bool(model.predict(last_data)[0] == 1)
+        if len(last_data) > 0:
+            return bool(model.predict(last_data)[0] == 1)
+        else:
+            last_candle_dt = self.data_manager.common_sql_req(f"SELECT MAX(date) FROM candles.{ticker}_hour").values[0]
+            print(ticker, "no data for recomendation")
+            print("last candle dt:", last_candle_dt)
+            return False
     
     def get_trading_recomendations(self):
         path_root = self.models_root
