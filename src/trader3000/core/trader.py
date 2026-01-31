@@ -44,7 +44,7 @@ class Trader:
         self.date_agents_loaded = datetime.datetime.now().date()
         self.TZ = os.getenv("TZ")
         self.model_manager = ModelManager()
-        self.default_stop_loss_rate = os.getenv("DEFAULT_STOP_LOSS_RATE") if os.getenv("DEFAULT_STOP_LOSS_RATE") else .9
+        self.default_stop_loss_rate = float(os.getenv("DEFAULT_STOP_LOSS_RATE")) if os.getenv("DEFAULT_STOP_LOSS_RATE") else .95
 
     def unpickle(self, path: str) -> Any:
         """Загружает и возвращает объект из файла с помощью pickle.
@@ -953,7 +953,7 @@ class Trader:
         self.data_manager.update_schedules()
         
         paths = self.model_manager.get_classifiers_paths()
-        tickers_by_models = [i.split("_")[1] for i in paths]
+        tickers_by_models = [i.split("_")[2] for i in paths]
         print(len(tickers_by_models),"models available")
         
         tickers_for_action = []
