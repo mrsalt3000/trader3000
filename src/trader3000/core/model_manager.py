@@ -207,3 +207,44 @@ class ModelManager:
             except Exception as e:
                 print("error:",e)
 
+    def get_clssifiers_tickers(self, model_type = "topline"):
+        model_names = self.get_classifiers_paths(model_type = model_type)
+        return [i.split("_")[2].upper() for i in model_names]
+    
+    def create_classifiers_bottomline(
+            self, 
+            mode = "add"
+            f1_treshold = .90,
+            support_treshold_rate = 4,
+            shift = 50,
+            increment = -0.02,
+            start_treshold = None,
+            test_treshold = None,
+            tickers = [],
+            days_train_rate = 1.5,
+            days_test_rate = 2,
+            ):
+        print("get_classifiers_bottomline")
+        topline_classifiers = self.get_clssifiers_tickers(model_type = "topline")
+        if mode == "add":
+            bottomline_classifiers = self.get_clssifiers_tickers(model_type = "bottomline")
+            target_tickers = [i for i in topline_classifiers if i not in bottomline_classifiers]
+        elif mode == "replace":
+            target_tickers = topline_classifiers
+        else:
+            raise("mode must be in ['add', 'replace']")
+        print(len(target_tickers),"target_tickers")
+
+        self.reaper_routine(
+                self, 
+                f1_treshold = f1_treshold,
+                support_treshold_rate = support_treshold_rate,
+                shift = shift,
+                increment = increment,
+                start_treshold = start_treshold,
+                test_treshold = test_treshold,
+                tickers = tickers,
+                days_train_rate = days_train_rate,
+                days_test_rate = days_test_rate,
+                )
+    
