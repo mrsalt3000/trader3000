@@ -236,7 +236,6 @@ class ModelManager:
         print(len(target_tickers),"target_tickers")
 
         self.reaper_routine(
-                self, 
                 f1_treshold = f1_treshold,
                 support_treshold_rate = support_treshold_rate,
                 shift = shift,
