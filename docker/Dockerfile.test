@@ -1,4 +1,3 @@
-# Используем официальный образ Python 3.10
 FROM python:3.10-slim
 
 # Устанавливаем системные зависимости
@@ -9,16 +8,16 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Устанавливаем менеджер пакетов uv (опционально, но рекомендуется)
+# Устанавливаем менеджер пакетов uv
 RUN pip install --no-cache-dir uv
 
 # Создаем рабочую директорию
 WORKDIR /app
 
-# Копируем файлы зависимостей (если есть)
+# Копируем файлы зависимостей
 COPY requirements-test.txt ./
 
-# Устанавливаем зависимости из  requirements-test.txt
+# Устанавливаем зависимости
 RUN uv pip install --system -r  requirements-test.txt
 
 # Очищаем кэш и временные файлы

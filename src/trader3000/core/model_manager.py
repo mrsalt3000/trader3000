@@ -113,8 +113,8 @@ class ModelManager:
         hold_tics = data["hold_tics"]
         return model, stats, ticker, features, model_type, date_created, estimated_price_change, hold_tics
     
-    def get_classifiers_paths(self):
-        return [i for i in os.listdir(self.models_root) if i.endswith(".pickle") and i.startswith("classifier")]
+    def get_classifiers_paths(self, model_type = "topline"):
+        return [i for i in os.listdir(self.models_root) if i.endswith(".pickle") and i.startswith(f"classifier_{model_type}")]
     
     def get_last_data(self, ticker, features):
         features_sql = "\n,".join(i for i in features)
@@ -134,7 +134,7 @@ class ModelManager:
     def get_trading_recomendations(self):
         path_root = self.models_root
         recomendations = []
-        paths = self.get_classifiers_paths()
+        paths = self.get_classifiers_paths(model_type = "topline")
         for path in paths:
             model, stats, ticker, features, model_type, date_created, estimated_price_change, hold_tics = self.unpickle_model(f"{path_root}/{path}")
             model_id = f"{date_created}_{ticker}_{estimated_price_change}_{hold_tics}"
@@ -149,15 +149,40 @@ class ModelManager:
                 recomendations.append(recomendation_dict)
         return recomendations
     
-    def reaper_routine(self, f1_treshold = .90, support_treshold = 1000, shift = 50, increment = 0.02, start_treshold = None, test_treshold = None):
-        tickers = self.data_manager.get_tickers_from_scope()
-        random.shuffle(tickers)
-        n_models = len(tickers)
-    
+    def reaper_routine(
+            self, 
+            f1_treshold = .90,
+            support_treshold_rate = 5,
+            shift = 50,
+            increment = 0.02,
+            start_treshold = None,
+            test_treshold = None,
+            tickers = [],
+            days_train_rate = 1.5,
+            days_test_rate = 2,
+            ):
+        
+        if len(tickers) == 0:
+            tickers = self.data_manager.get_tickers_from_scope()
+            random.shuffle(tickers)
+
+        days_train = int(365 * days_train_rate)
+        days_test = int(365 // days_test_rate)
+
         if start_treshold == None:
-            start_treshold = str(datetime.datetime.now() - datetime.timedelta(days=365 * 1.5))[:10]
+            start_treshold = str(datetime.datetime.now() - datetime.timedelta(days=days_train))[:10]
         if test_treshold == None:
-            test_treshold = str(datetime.datetime.now() - datetime.timedelta(days=365 //2))[:10]
+            test_treshold = str(datetime.datetime.now() - datetime.timedelta(days=days_test))[:10]
+        if increment > 0:
+            model_type = "topline"
+        elif increment < 0:
+            model_type = "bottomline"
+        else:
+            raise("increment cant be equal to zero")
+        
+        #Сколько сделок должно быть в тестовом периоде
+        #Отсекаем акции, корторые мало торгуются
+        support_treshold = days_test * support_treshold_rate
            
         path_root = self.models_root
         process_stats=[]
@@ -166,22 +191,19 @@ class ModelManager:
         saved_counter = 0
         for t, ticker in enumerate(tickers):
             print("\n","="*10,ticker,"="*10)
-            if t>= n_models:
-                break
-            else:
-                try:
-                    model, stats, ticker, features, date_created = self.get_experiment_result(ticker, shift, increment,start_treshold, test_treshold)
-                    f1 = stats["classification_report"]["macro avg"]["f1-score"]
-                    support = stats["classification_report"]["1"]["support"]
-                    print("f1:",round(f1,2),"support:",int(support))
-            
-                    process_stats.append(
-                        {"ticker": ticker, "stats": stats,"start_treshold":start_treshold,"test_treshold":test_treshold, "shift":shift ,"increment":increment}
-                    )
-                    if f1>= f1_treshold and support >= support_treshold:
-                        saved_counter+=1
-                        print("saving",saved_counter)
-                        self.pickle_model(model, stats, ticker, features, date_created, estimated_price_change = increment, model_type = "classifier")
-                except Exception as e:
-                    print("error:",e)
+            try:
+                model, stats, ticker, features, date_created = self.get_experiment_result(ticker, shift, increment,start_treshold, test_treshold)
+                f1 = stats["classification_report"]["macro avg"]["f1-score"]
+                support = stats["classification_report"]["1"]["support"]
+                print("f1:",round(f1,2),"support:",int(support))
+        
+                process_stats.append(
+                    {"ticker": ticker, "stats": stats,"start_treshold":start_treshold,"test_treshold":test_treshold, "shift":shift ,"increment":increment}
+                )
+                if f1 >= f1_treshold and support >= support_treshold:
+                    saved_counter+=1
+                    print("saving",saved_counter)
+                    self.pickle_model(model, stats, ticker, features, date_created, estimated_price_change = increment, model_type = f"classifier_{model_type}")
+            except Exception as e:
+                print("error:",e)
 

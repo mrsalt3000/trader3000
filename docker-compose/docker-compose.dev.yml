@@ -2,7 +2,7 @@ services:
   jupyter:
     image: mrsalt3000/trader3000:dev-latest
     ports:
-      - "8888:8888"   # JupyterLab
+      - "8888:8888" 
     volumes:
       - E:/work/2. trader3000/jupyter:/home/jovyan/work
     command:
@@ -33,6 +33,8 @@ services:
       - JUPYTER_ENABLE_LAB=yes
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - TINVEST_TOKEN=${TINVEST_TOKEN}
+    logging:
+      driver: "none"
 
   vscode:
     image: codercom/code-server:latest 

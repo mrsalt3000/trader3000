@@ -9,16 +9,16 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Устанавливаем менеджер пакетов uv (опционально, но рекомендуется)
+# Устанавливаем менеджер пакетов uv
 RUN pip install --no-cache-dir uv
 
 # Создаем рабочую директорию
 WORKDIR /app
 
-# Копируем файлы зависимостей (если есть)
+# Копируем файлы зависимостей
 COPY requirements-dev.txt ./
 
-# Устанавливаем зависимости из  requirements-dev.txt
+# Устанавливаем зависимости
 RUN uv pip install --system -r  requirements-dev.txt
 
 # Очищаем кэш и временные файлы
