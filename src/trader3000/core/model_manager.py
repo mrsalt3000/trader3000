@@ -31,17 +31,22 @@ class ModelManager:
 
     def get_experiment_result(self, ticker, shift, increment_p,start_treshold, test_treshold):
         indicators = self.data_manager.common_sql_req(f"SELECT * FROM datasets.{ticker}_hour_total_indicators")
-        
+        if increment_p > 0:
+            max_min = "MAX"
+
+        else:
+            max_min = "MIN"
+            
         sql = f"""
         SELECT 
             date
             ,close
-            ,MAX(close) OVER (ORDER BY date ROWS BETWEEN {shift} PRECEDING AND CURRENT ROW) AS max_within_n
+            ,{max_min}(close) OVER (ORDER BY date ROWS BETWEEN {shift} PRECEDING AND CURRENT ROW) AS target_within_n
             FROM datasets.{ticker}_hour_total_cost_history
         """
         cost_history = self.data_manager.common_sql_req(sql)    
         features = [i for i in sorted(indicators.columns) if i not in ["date", "index"]]
-        cols = features + ["close", "max_within_n"]
+        cols = features + ["close", "target_within_n"]
     
         #print("cost_history.columns:", cost_history.columns)
         #print("indicators.columns:", indicators.columns)
@@ -50,9 +55,15 @@ class ModelManager:
         full_table.set_index("date", inplace = True)
         #print("full_table.columns:", sorted(full_table.columns))
         dataset = full_table[cols]
-        dataset["target"] = (dataset['max_within_n'] >= dataset['close']*(1+increment_p)).astype(int)
+
+        if increment_p > 0:
+            dataset["target"] = (dataset['target_within_n'] >= dataset['close']*(1+increment_p)).astype(int)
+
+        else:
+            dataset["target"] = (dataset['target_within_n'] <= dataset['close']*(1+increment_p)).astype(int)
+        
         del dataset["close"]
-        del dataset['max_within_n']
+        del dataset['target_within_n']
         
         X = dataset[features].dropna(); y = dataset['target'].loc[X.index]
         
@@ -203,7 +214,7 @@ class ModelManager:
                 if f1 >= f1_treshold and support >= support_treshold:
                     saved_counter+=1
                     print("saving",saved_counter)
-                    self.pickle_model(model, stats, ticker, features, date_created, estimated_price_change = increment, model_type = f"classifier_{model_type}")
+                    self.pickle_model(model, stats, ticker, features, date_created, estimated_price_change = increment, model_type = f"classifier_{model_type}", hold_tics = shift)
             except Exception as e:
                 print("error:",e)
 
