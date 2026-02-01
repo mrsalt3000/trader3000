@@ -109,7 +109,8 @@ class ModelManager:
             "hold_tics":hold_tics,
             "model_type": model_type,
         }
-        with open(f"{self.models_root}/{model_type}_{ticker}_{date_created}.pickle", "wb") as file:
+        full_path = f"{self.models_root}/{model_type}_{ticker}_{date_created}.pickle".lower()
+        with open(full_path, "wb") as file:
             pickle.dump(data,file)
     
     def unpickle_model(self, path):
@@ -131,10 +132,19 @@ class ModelManager:
     def get_last_data(self, ticker, features, last_candle_check = True):
         features_sql = "\n,".join(i for i in features)
         if last_candle_check:
-            target_dt = str(datetime.datetime.now(ZoneInfo("UTC")).replace(minute=0, second=0, microsecond=0))# - datetime.timedelta(hours = 1)
-            dt_filter = f"WHERE date = '{target_dt}'"
+            target_dt = str(datetime.datetime.now(ZoneInfo("UTC")).replace(minute=0, second=0, microsecond=0))[:19]# - datetime.timedelta(hours = 1)
+            print("target_dt",target_dt)
+            dt_filter = f"WHERE date >= '{target_dt}'"
         else:
             dt_filter = ""
+
+        sql = f"""
+        SELECT 
+            max(date)
+            FROM datasets.{ticker}_hour_total_indicators
+        """
+        max_date =  self.data_manager.common_sql_req(sql) 
+        print("max_date",max_date.values[0])
 
         sql = f"""
         SELECT 
@@ -149,6 +159,7 @@ class ModelManager:
     def get_recomendation(self, model, ticker, features):
         last_data = self.get_last_data(ticker, features)
         if len(last_data) > 0:
+            print(ticker, "recomendation prepared")
             return bool(model.predict(last_data)[0] == 1)
         else:
             last_candle_dt = self.data_manager.common_sql_req(f"SELECT MAX(date) FROM candles.{ticker}_hour").values[0]

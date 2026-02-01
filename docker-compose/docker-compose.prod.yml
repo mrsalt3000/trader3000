@@ -1,18 +1,4 @@
 services:
-  # updating_routine:
-  #   image: mrsalt3000/trader3000:latest
-  #   volumes:
-  #     - ../src:/app
-  #   command: sh -c "python -m trader3000.updating_routine.main" 
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   env_file:
-  #     - .env
-  #   environment:
-  #     - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-  #     - TINVEST_TOKEN=${TINVEST_TOKEN}
-
   jupyter:
     image: mrsalt3000/trader3000:dev-latest
     ports:
@@ -46,13 +32,13 @@ services:
       - GITHUB_PAT=${GITHUB_PAT}
       - JUPYTER_ENABLE_LAB=yes
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - TINVEST_TOKEN=${TINVEST_TOKEN}
+      - TINVEST_TOKEN=${TINVEST_TOKEN_PLAYGROUND}
 
-  trader_routine:
+  trader_playground:
     image: mrsalt3000/trader3000:latest
     volumes:
       - ../src:/app
-      - ../models:/models
+      - ../models/playground:/models
     command: sh -c "python -m trader3000.trader_routine.main" 
     depends_on:
       postgres:
@@ -61,7 +47,24 @@ services:
       - .env
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - TINVEST_TOKEN=${TINVEST_TOKEN}
+      - TINVEST_TOKEN=${TINVEST_TOKEN_PLAYGROUND}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+  trader_mono_mtlr:
+    image: mrsalt3000/trader3000:latest
+    volumes:
+      - ../src:/app
+      - ../models/mono/mtlr:/models
+    command: sh -c "python -m trader3000.trader_routine.main" 
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - TINVEST_TOKEN=${TINVEST_TOKEN_MONO_MTLR}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
