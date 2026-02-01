@@ -167,15 +167,52 @@ class ModelManager:
             print("last candle dt:", last_candle_dt)
             return False
     
-    def get_trading_recomendations(self):
-        path_root = self.models_root
+    def get_model_ticker_name(self, model_name):
+        return model_name.split("_")[2]
+        
+    def get_model_hold_tics(self, model_name):
+        return model_name.split("_")[3]
+        
+    def get_bottomline_pair(self, model_name, paths_bottomline):
+        model_ticker = self.get_model_ticker_name(model_name)
+        model_hold_tics = self.get_model_hold_tics(model_name)
+        try:
+            return [i for i in paths_bottomline if self.get_model_ticker_name(i) == model_ticker and self.get_model_hold_tics(i) == model_hold_tics][0]
+        except:
+            return None
+            
+    def get_advice(self, model_namne):
+        model, stats, ticker, features, model_type, date_created, estimated_price_change, hold_tics = self.unpickle_model(f"{self.models_root}/{model_namne}")
+        model_id = f"{date_created}_{ticker}_{estimated_price_change}_{hold_tics}"
+        advice = self.get_recomendation(model, ticker, features)
+        return advice
+        
+    def get_trading_recomendations(self, bottomline_mode = "if_available"):
+        assert bottomline_mode in ["if_available", "obligatorily", "ignore"], 'bottomline_mode must be in ["if_available", "obligatorily", "ignore"]'
+        print("\nget_trading_recomendations")
+        print("bottomline_mode:", bottomline_mode)
+        paths_topline = self.get_classifiers_paths(model_type = "topline")
         recomendations = []
-        paths = self.get_classifiers_paths(model_type = "topline")
-        for path in paths:
-            model, stats, ticker, features, model_type, date_created, estimated_price_change, hold_tics = self.unpickle_model(f"{path_root}/{path}")
-            model_id = f"{date_created}_{ticker}_{estimated_price_change}_{hold_tics}"
-            advice = self.get_recomendation(model, ticker, features)
-            if advice:
+
+        for path in paths_topline:
+            print("\n",path)
+            buy_advice = self.get_advice(path)
+
+            if bottomline_mode in ["if_available", "obligatorily"]:
+                paths_bottomline = self.get_classifiers_paths(model_type = "bottomline")
+                bottomline_pair = self.get_bottomline_pair(path, paths_bottomline)
+                
+                if bottomline_pair != None:  
+                    print("bottomline_pair found")
+                    supprt_check = not self.get_advice(bottomline_pair) #Поддержка возвращает, проосядет ли акция на stop_loss_rate за целевой период
+                    print("supprt_check", supprt_check)
+                else:
+                    print("bottomline_pair not found")
+                    supprt_check = bottomline_mode == "if_available"
+
+                buy_advice = buy_advice and supprt_check
+            
+            if buy_advice:
                 recomendation_dict = {
                     "ticker": ticker, 
                     "estimated_price_change": estimated_price_change, 

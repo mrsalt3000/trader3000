@@ -44,7 +44,7 @@ class Trader:
         self.date_agents_loaded = datetime.datetime.now().date()
         self.TZ = os.getenv("TZ")
         self.model_manager = ModelManager()
-        self.default_stop_loss_rate = float(os.getenv("DEFAULT_STOP_LOSS_RATE")) if os.getenv("DEFAULT_STOP_LOSS_RATE") else .95
+        self.stop_loss_rate = float(os.getenv("DEFAULT_STOP_LOSS_RATE")) if os.getenv("DEFAULT_STOP_LOSS_RATE") else .95
 
     def unpickle(self, path: str) -> Any:
         """Загружает и возвращает объект из файла с помощью pickle.
@@ -475,7 +475,7 @@ class Trader:
                 print("posting stop loss")
                 sell_price_sl = invest.utils.quotation_to_decimal(
                     buy_order_info.average_position_price
-                ) * self.default_stop_loss_rate
+                ) * self.stop_loss_rate
 
                 sell_price_sl_decimal = (
                     round(sell_price_sl / min_price_increment)
