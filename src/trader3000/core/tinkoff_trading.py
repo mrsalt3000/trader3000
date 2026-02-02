@@ -49,6 +49,7 @@ class TinkoffTrading:
         self.QUANT_COST = int(os.getenv("QUANT_COST"))
 
         print("account_name:", self.account_name)
+        print("account_id:", self.account_id)
         # self.EXPIRATION_TYPE = StopOrderExpirationType.STOP_ORDER_EXPIRATION_TYPE_GOOD_TILL_DATE
 
     def get_account_name(self) -> Tuple[str, str]:
@@ -555,6 +556,7 @@ class TinkoffTrading:
                 or 0.0,
                 "direction": post_order_response.direction.name,
                 "order_type": post_order_response.order_type.name,
+                "account_id": self.account_id,
             }
         else:
             skip_reason = (
@@ -580,6 +582,7 @@ class TinkoffTrading:
                 "executed_commission": 0,
                 "direction": OrderDirection.ORDER_DIRECTION_BUY.name,
                 "order_type": OrderType.ORDER_TYPE_LIMIT.name,
+                "account_id": self.account_id,
             }
         return cast(Transaction, transaction)
 

@@ -290,7 +290,13 @@ class Trader:
         Returns:
             np.ndarray: Массив идентификаторов новых ордеров.
         """
-        sql = "SELECT order_id FROM transaction.transactions WHERE execution_report_status = 'EXECUTION_REPORT_STATUS_NEW'"
+        sql = f"""
+        SELECT 
+            order_id 
+        FROM transaction.transactions 
+        WHERE execution_report_status = 'EXECUTION_REPORT_STATUS_NEW'
+            AND accounbt_id = '{self.trading_manager.account_id}'
+        """
         return self.data_manager.common_sql_req(sql)["order_id"].values
 
     def update_order_statuses(self) -> None:
@@ -305,6 +311,7 @@ class Trader:
         print("update_order_statuses")
         new_orders = self.get_new_orders()
         for order_id in new_orders:
+            print("order_id:",order_id)
             order_status = self.trading_manager.get_order_status(order_id)
             sql = f"UPDATE transaction.transactions SET execution_report_status = '{order_status}' WHERE order_id = '{order_id}'"
             self.data_manager.common_sql_comand(sql)
@@ -319,7 +326,7 @@ class Trader:
             None
         """
         print("update_sell_orders")
-        new_sell_orders = self.data_manager.get_orders_sell_order_posted()
+        new_sell_orders = self.data_manager.get_orders_sell_order_posted(self.trading_manager.account_id)
         for [sell_order_id] in new_sell_orders:
             with self.trading_manager.client(
                 self.trading_manager.token
@@ -356,7 +363,7 @@ class Trader:
         Returns:
             None
         """
-        orders_bought = self.data_manager.get_oreders_bought()
+        orders_bought = self.data_manager.get_oreders_bought(self.trading_manager.account_id)
         for buy_order_id, estimated_price_change in orders_bought:
             with self.trading_manager.client(
                 self.trading_manager.token
@@ -476,7 +483,7 @@ class Trader:
                 print("posting stop loss")
                 sell_price_sl = invest.utils.quotation_to_decimal(
                     buy_order_info.average_position_price
-                ) * self.stop_loss_rate
+                ) * Decimal(self.stop_loss_rate)
 
                 sell_price_sl_decimal = (
                     round(sell_price_sl / min_price_increment)
@@ -521,7 +528,7 @@ class Trader:
             None
         """
         print("\npost_sell_rancid_orders")
-        orders_rancid = self.data_manager.get_orders_rancid()
+        orders_rancid = self.data_manager.get_orders_rancid(self.trading_manager.account_id)
         for order_id, buy_dt, lots_requested in orders_rancid:
             print("order_id:",order_id)
             with self.trading_manager.client(
