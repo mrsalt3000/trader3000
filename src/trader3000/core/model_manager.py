@@ -185,7 +185,7 @@ class ModelManager:
         model, stats, ticker, features, model_type, date_created, estimated_price_change, hold_tics = self.unpickle_model(f"{self.models_root}/{model_namne}")
         model_id = f"{date_created}_{ticker}_{estimated_price_change}_{hold_tics}"
         advice = self.get_recomendation(model, ticker, features)
-        return advice
+        return advice, ticker, estimated_price_change, hold_tics, model_id
         
     def get_trading_recomendations(self, bottomline_mode = "if_available"):
         assert bottomline_mode in ["if_available", "obligatorily", "ignore"], 'bottomline_mode must be in ["if_available", "obligatorily", "ignore"]'
@@ -196,7 +196,7 @@ class ModelManager:
 
         for path in paths_topline:
             print("\n",path)
-            buy_advice = self.get_advice(path)
+            buy_advice, ticker, estimated_price_change, hold_tics, model_id = self.get_advice(path)
 
             if bottomline_mode in ["if_available", "obligatorily"]:
                 paths_bottomline = self.get_classifiers_paths(model_type = "bottomline")
@@ -204,7 +204,8 @@ class ModelManager:
                 
                 if bottomline_pair != None:  
                     print("bottomline_pair found")
-                    supprt_check = not self.get_advice(bottomline_pair) #Поддержка возвращает, проосядет ли акция на stop_loss_rate за целевой период
+                    support_advice, _, __, ___, ____ = self.get_advice(bottomline_pair)
+                    supprt_check = not support_advice #Поддержка возвращает, просядет ли акция на stop_loss_rate за целевой период
                     print("supprt_check", supprt_check)
                 else:
                     print("bottomline_pair not found")

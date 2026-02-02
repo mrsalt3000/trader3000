@@ -45,6 +45,7 @@ class Trader:
         self.TZ = os.getenv("TZ")
         self.model_manager = ModelManager()
         self.stop_loss_rate = float(os.getenv("DEFAULT_STOP_LOSS_RATE")) if os.getenv("DEFAULT_STOP_LOSS_RATE") else .95
+        self.is_main_agent = os.getenv("IS_MAIN_AGENT") == "TRUE"
 
     def unpickle(self, path: str) -> Any:
         """Загружает и возвращает объект из файла с помощью pickle.
@@ -519,9 +520,10 @@ class Trader:
         Returns:
             None
         """
-        print("post_sell_rancid_orders")
+        print("\npost_sell_rancid_orders")
         orders_rancid = self.data_manager.get_orders_rancid()
         for order_id, buy_dt, lots_requested in orders_rancid:
+            print("order_id:",order_id)
             with self.trading_manager.client(
                 self.trading_manager.token
             ) as client:
@@ -602,7 +604,8 @@ class Trader:
 
     def trader_routine_preparation(self):
         print("trader_routine_preparation")
-        self.data_manager.update_schedules()
+        if self.is_main_agent:
+            self.data_manager.update_schedules()
         
         paths = self.model_manager.get_classifiers_paths()
         tickers_by_models = [i.split("_")[2] for i in paths]
@@ -629,72 +632,74 @@ class Trader:
         print("Trader routine started:",self.get_now())
         schedule_name = "MOEX_MRNG_EVNG_E_WKND_DLR" #расписание по умолчанию. Если торговли не будет, используется чтобы  найти ближайший рабочтий час биржи   
         while True:
-            try:
-                print("="*20,"Iteration",self.get_now(),"="*20)
+            #   try:
+            print("="*20,"Iteration",self.get_now(),"="*20)
+            print("self.is_main_agent:",self.is_main_agent)
+
+            #if self.is_main_agent:
                 # Обработка прошлых действий
-                self.update_order_statuses()
-                self.update_sell_orders()
-                self.update_tp_orders()
-                self.post_sell_rancid_orders()
+            self.update_order_statuses()
+            self.update_sell_orders()
+            self.update_tp_orders()
+            self.post_sell_rancid_orders()
+            self.post_take_profits()
+            
+            #Поиск, что купить
 
-                self.post_take_profits()
+            recomendations = self.trader_routine_preparation()
+            for recomendation in recomendations:
                 
-                #Поиск, что купить
-
-                recomendations = self.trader_routine_preparation()
-                for recomendation in recomendations:
-                    
-                    ticker = recomendation["ticker"]
-                    print("\n","="*10,ticker,"="*10)
-                    estimated_price_change = recomendation["estimated_price_change"]
-                    hold_tics = recomendation["hold_tics"]
-                    model_id = recomendation["model_id"]
-                    
-                    last_candle_value = self.data_manager.get_last_price(
-                    ticker=ticker, resolution='hour'
-                    )
-                    transaction_from_trading_manager = (
-                        self.trading_manager.quantum_buy(
-                            ticker,
-                            price=last_candle_value * self.buy_increment,
-                            n_quants=num_quants,
-                        )
-                    )
+                ticker = recomendation["ticker"]
+                print("\n","="*10,ticker,"="*10)
+                estimated_price_change = recomendation["estimated_price_change"]
+                hold_tics = recomendation["hold_tics"]
+                model_id = recomendation["model_id"]
                 
-                    schedule_name = self.trading_manager.get_ticker_info(ticker)["schedule"].upper()
-                    fact_dt = self.data_manager.get_candles_last_dt(
-                                                ticker=ticker,
-                                                time_step_resolution="hour",
+                last_candle_value = self.data_manager.get_last_price(
+                ticker=ticker, resolution='hour'
+                )
+                transaction_from_trading_manager = (
+                    self.trading_manager.quantum_buy(
+                        ticker,
+                        price=last_candle_value * self.buy_increment,
+                        n_quants=num_quants,
+                    )
+                )
+            
+                schedule_name = self.trading_manager.get_ticker_info(ticker)["schedule"].upper()
+                fact_dt = self.data_manager.get_candles_last_dt(
+                                            ticker=ticker,
+                                            time_step_resolution="hour",
+                                        )
+                estimated_sell_dt = self.data_manager.get_target_sell_dt(
+                                                schedule_name=schedule_name,
+                                                buy_dt=fact_dt.replace(tzinfo=None),
+                                                resolution="hour",
+                                                steps=hold_tics,
                                             )
-                    estimated_sell_dt = self.data_manager.get_target_sell_dt(
-                                                    schedule_name=schedule_name,
-                                                    buy_dt=fact_dt.replace(tzinfo=None),
-                                                    resolution="hour",
-                                                    steps=hold_tics,
-                                                )
-                    estimated_sell_date = (estimated_sell_dt+datetime.timedelta(days=1)).date()
-                
-                    print(f"Bought {ticker}: {num_quants} quants")
-                    print(f"estimated_sell_date: {estimated_sell_date}",f"estimated_price_change: {estimated_price_change}")
-                    transaction_meta = {
-                        "buy_dt": self.get_now(),
-                        "num_quants": num_quants,
-                        "sell_dt_fact": datetime.date(2100, 1, 1),
-                        "status": "bought",
-                        "quant_cost": self.quant_cost,
-                        "sell_cost": None,
-                        "model_id": model_id,
-                        "estimated_price_change": estimated_price_change,
-                        "estimated_sell_date": estimated_sell_date,
-                    }
-                
-                    transaction = transaction_meta | transaction_from_trading_manager
-                    self.data_manager.save_transaction(transaction)
-                    time.sleep(1)
-                self.sleep_till_next_iter(schedule_name) #schedule_name
-            except Exception as e:
-                print("ERROR:\n", e)
-                self.sleep_till_next_iter()
+                estimated_sell_date = (estimated_sell_dt+datetime.timedelta(days=1)).date()
+            
+                print(f"Bought {ticker}: {num_quants} quants")
+                print(f"estimated_sell_date: {estimated_sell_date}",f"estimated_price_change: {estimated_price_change}")
+                transaction_meta = {
+                    "buy_dt": self.get_now(),
+                    "num_quants": num_quants,
+                    "sell_dt_fact": datetime.date(2100, 1, 1),
+                    "status": "bought",
+                    "quant_cost": self.quant_cost,
+                    "sell_cost": None,
+                    "model_id": model_id,
+                    "estimated_price_change": estimated_price_change,
+                    "estimated_sell_date": estimated_sell_date,
+                }
+            
+                transaction = transaction_meta | transaction_from_trading_manager
+                self.data_manager.save_transaction(transaction)
+                time.sleep(1)
+            self.sleep_till_next_iter(schedule_name) #schedule_name
+            # except Exception as e:
+            #     print("ERROR:\n", e)
+            #     self.sleep_till_next_iter()
         
 
     def update_tp_orders(self):

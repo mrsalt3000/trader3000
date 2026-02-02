@@ -699,6 +699,8 @@ class TinkoffTrading:
             ValueError: Invalid order_id or account_id.
             Exception: API request failures, network issues, order not found.
         """
+        print("\nget_order_status, order_id:",order_id)
+
         with self.client(self.token) as client:
             responce = client.orders.get_order_state(
                 account_id=self.account_id, order_id=order_id
