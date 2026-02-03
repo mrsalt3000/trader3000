@@ -1211,7 +1211,7 @@ class DataManager:
             x_out.append(list(chain.from_iterable(x_in[p - n_steps : p])))
         return np.array(x_out), np.array(y_out)
 
-    def get_orders_bought(self) -> np.ndarray:
+    def get_orders_bought(self, account_id) -> np.ndarray:
         """
         Получить идентификаторы ордеров и оценку изменения цены для купленных ордеров.
 
@@ -1222,7 +1222,7 @@ class DataManager:
         Returns:
             np.ndarray: Массив значений с колонками order_id и estimated_price_change для соответствующих ордеров.
         """
-        sql = """
+        sql = f"""
         SELECT
             order_id,
             estimated_price_change
@@ -1230,6 +1230,7 @@ class DataManager:
         WHERE execution_report_status IN ('EXECUTION_REPORT_STATUS_FILL','EXECUTION_REPORT_STATUS_PARTIALLYFILL')
             AND direction = 'ORDER_DIRECTION_BUY'
             AND status = 'bought'
+            AND account_id = '{account_id}'
         """
         result = self.common_sql_req(sql)
         if result is None or result.empty:
@@ -1237,7 +1238,7 @@ class DataManager:
             return np.empty((0, 2))
         return result.values
 
-    def get_orders_sell_order_posted(self) -> np.ndarray:
+    def get_orders_sell_order_posted(self, account_id) -> np.ndarray:
         """
         Получить идентификаторы ордеров на продажу, статусы которых 'sell_order_posted' и направление 'ORDER_DIRECTION_BUY'.
 
@@ -1247,12 +1248,13 @@ class DataManager:
         Returns:
             np.ndarray: Массив значений с колонкой sell_order_id для соответствующих ордеров.
         """
-        sql = """
+        sql = f"""
         SELECT
             sell_order_id
         FROM transaction.transactions 
         WHERE status = 'sell_order_posted'
             AND direction = 'ORDER_DIRECTION_BUY'
+            AND account_id = '{account_id}'
         """
         result = self.common_sql_req(sql)
         if result is None or result.empty:
@@ -1261,6 +1263,7 @@ class DataManager:
 
     def get_orders_rancid(
         self,
+        account_id
     ) -> list | np.ndarray:
         """
         Получить ордера, у которых истек предполагаемый срок продажи (просроченные ордера).
@@ -1287,6 +1290,7 @@ class DataManager:
             AND direction = 'ORDER_DIRECTION_BUY'
             AND status IN  ('take_profit_posted', 'STOP_ORDER_STATUS_ACTIVE')
             AND estimated_sell_date <= '{date_treshold}'
+            AND account_id = '{account_id}'
         """
         result = self.common_sql_req(sql)
         if result is not None and len(result) > 0:
@@ -1319,6 +1323,7 @@ class DataManager:
     def get_orders_to_sell_by_exp_time(
         self,
         days_treshold: int,
+        account_id,
     ) -> np.ndarray:
         """
         Получить ордера на продажу с датой покупки, не позднее заданного порога.
@@ -1347,6 +1352,7 @@ class DataManager:
             AND direction = 'ORDER_DIRECTION_BUY'
             AND status = 'take_profit_posted'
             AND buy_dt <= '{treshold_date}'
+            AND account_id = '{account_id}'
         """
         result = self.common_sql_req(sql)
         if result is None:

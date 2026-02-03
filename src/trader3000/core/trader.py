@@ -295,7 +295,7 @@ class Trader:
             order_id 
         FROM transaction.transactions 
         WHERE execution_report_status = 'EXECUTION_REPORT_STATUS_NEW'
-            AND accounbt_id = '{self.trading_manager.account_id}'
+            AND account_id = '{self.trading_manager.account_id}'
         """
         return self.data_manager.common_sql_req(sql)["order_id"].values
 
@@ -414,7 +414,7 @@ class Trader:
         Returns:
             None
         """
-        orders_bought = self.data_manager.get_orders_bought()
+        orders_bought = self.data_manager.get_orders_bought(self.trading_manager.account_id)
         for buy_order_id, estimated_price_change in orders_bought:
             target_price_change = Decimal(estimated_price_change)+1
             with self.trading_manager.client(
