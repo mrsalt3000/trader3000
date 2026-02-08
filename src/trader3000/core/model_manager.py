@@ -30,7 +30,7 @@ class ModelManager:
         print("self.models_root",self.models_root)
         print("os.listdir(self.models_root)",os.listdir(self.models_root))
 
-    def get_experiment_result(self, ticker, shift, increment_p,start_treshold, test_treshold):
+    def get_experiment_result(self, ticker, shift, increment_p,start_treshold, test_treshold, validation_treshold = None):
         indicators = self.data_manager.common_sql_req(f"SELECT * FROM datasets.{ticker}_hour_total_indicators")
         if increment_p > 0:
             max_min = "MAX"
@@ -68,14 +68,19 @@ class ModelManager:
         
         X = dataset[features].dropna(); y = dataset['target'].loc[X.index]
         
-        X_train = X.loc[:test_treshold]
-        X_test  = X.loc[test_treshold:]
+        X_train = X.loc[start_treshold:test_treshold]
+        if validation_treshold == None:
+            X_test  = X.loc[test_treshold:]
+        else:
+            X_test  = X.loc[test_treshold:validation_treshold]
+            X_validation  = X.loc[validation_treshold:]
+            y_validation  = dataset['target'].loc[X_validation.index]
     
         y_train = dataset['target'].loc[X_train.index]
         y_test  = dataset['target'].loc[X_test.index]
         
-        #X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-        model = RandomForestClassifier(n_estimators=100, random_state=42)
+        
+        model = RandomForestClassifier(n_estimators=100)#, random_state=42
         model.fit(X_train, y_train)
         
         y_pred = model.predict(X_test)
@@ -84,18 +89,41 @@ class ModelManager:
         accuracy = accuracy_score(y_test, y_pred)
         classification_report_result = classification_report(y_test, y_pred, output_dict=True)
         roc_auc = roc_auc_score(y_test, y_pred_proba)
+        print("\nTest")
         print("Accuracy:", accuracy)
         print(classification_report(y_test, y_pred))
         print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
         print("ROC-AUC:", roc_auc)
     
         stats = {
-            "accuracy": accuracy,
-            "classification_report":classification_report_result,
-            "roc_auc":roc_auc
+            "test":{
+                "accuracy": accuracy,
+                "classification_report":classification_report_result,
+                "roc_auc":roc_auc
+                }
         }
-        date_created = str(datetime.datetime.now())[:10]
+        if validation_treshold != None:
+            y_pred = model.predict(X_validation)
+            y_pred_proba = model.predict_proba(X_validation)[:, 1]  # вероятности для класса 1
+            
+            accuracy = accuracy_score(y_validation, y_pred)
+            classification_report_result = classification_report(y_validation, y_pred, output_dict=True)
+            roc_auc = roc_auc_score(y_validation, y_pred_proba)
+            print("\nValidation")
+            print("Accuracy:", accuracy)
+            print(classification_report(y_validation, y_pred))
+            print("Confusion Matrix:\n", confusion_matrix(y_validation, y_pred))
+            print("ROC-AUC:", roc_auc)
         
+            stats = {
+                "validation":{
+                    "accuracy": accuracy,
+                    "classification_report":classification_report_result,
+                    "roc_auc":roc_auc
+                    }
+            }
+        
+        date_created = str(datetime.datetime.now())[:10]
         return model, stats, ticker, features, date_created
     
     def pickle_model(self, model, stats, ticker, features, date_created, estimated_price_change, hold_tics, model_type = "classifier"):
