@@ -272,7 +272,7 @@ class DataManager:
     @with_connection
     def recalculate_indicators(
         self,
-        mode: str = "total",
+        mode: str = "update",
         tickers = [],
         con: Optional["sqlalchemy.engine.Connection"] = None,
     ) -> None:
@@ -300,130 +300,59 @@ class DataManager:
                  for table in self.get_table_names_by_key(ticker, "candles")
             ]
 
-        if mode == "total":
-            TRESHOLDS = {
-                # "train": [
-                #     datetime.datetime(2019, 1, 1, 0),
-                #     datetime.datetime(2021, 6, 1, 0),
-                # ],
-                # "test": [
-                #     datetime.datetime(2021, 6, 1, 0),
-                #     datetime.datetime(2024, 1, 1, 0),
-                # ],
-                # "validation": [
-                #     datetime.datetime(2024, 1, 1, 0),
-                #     datetime.datetime(2100, 1, 1, 0),
-                # ],
-                "total": [
-                    datetime.datetime(1900, 1, 1, 0),
-                    datetime.datetime(2100, 1, 1, 0),
-                ],
-            }
-            for candles_table in candles_tables:
-                print(candles_table)
-                candles = self.common_sql_req(
-                    sql=f'SELECT DISTINCT * FROM candles."{candles_table}" ORDER BY date DESC'
-                )
-                if candles is None:
-                    continue
-                candles.drop_duplicates(inplace=True)
-                indicators_calculator = IndicatorsCalculator(candles)
-                #print("max(indicators_calculator.data[date]):",max(indicators_calculator.data.index))
-                calculated_data = indicators_calculator.calculate_indicators()
-                #print("max(calculated_data.index):",max(calculated_data.index))
-                calculated_data_columns = calculated_data.columns
-                calculated_data.index = pd.to_datetime(calculated_data.index)
+        for candles_table in candles_tables:
+            print(candles_table)
+            candles = self.common_sql_req(
+                sql=f'SELECT DISTINCT * FROM candles."{candles_table}" ORDER BY date DESC'
+            )
+            if candles is None:
+                continue
+            candles.drop_duplicates(inplace=True)
+            indicators_calculator = IndicatorsCalculator(candles)
+            #print("max(indicators_calculator.data[date]):",max(indicators_calculator.data.index))
+            calculated_data = indicators_calculator.calculate_indicators()
+            #print("max(calculated_data.index):",max(calculated_data.index))
+            calculated_data_columns = calculated_data.columns
+            calculated_data.index = pd.to_datetime(calculated_data.index)
 
-                for dataset_type, [start, finish] in TRESHOLDS.items():
-                    table_name = f"{candles_table}_{dataset_type}_cost_history"
-                    slice_ = calculated_data.loc[
-                        start:finish, calculated_data_columns[:5]  # type: ignore
-                    ]
-                    slice_.index = slice_.index.astype(str)
-                    slice_.index.name = "date"
-                    slice_.to_sql(
-                        con=con,
-                        schema="datasets",
-                        name=table_name,
-                        if_exists="replace",
-                        index=True,
-                    )
+            dataset_type = "total"
+            
+            if mode == "total":
+                start = datetime.datetime(1900, 1, 1, 0, 0)
+                if_exists = "replace"
+            elif mode == "update":
+                ticker = candles_table.split("_")[0]
+                last_saved_candle = self.get_last_update_dt(ticker)
+                start = last_saved_candle + datetime.timedelta(hours=1)
+                if_exists = "append"
 
-                    table_name = f"{candles_table}_{dataset_type}_indicators"
-                    slice_ = calculated_data.loc[
-                        start:finish, calculated_data_columns[5:]  # type: ignore
-                    ]
-                    slice_.index = slice_.index.astype(str)
-                    slice_.index.name = "date"
-                    slice_.to_sql(
-                        con=con,
-                        schema="datasets",
-                        name=table_name,
-                        if_exists="replace",
-                        index=True,
+            table_name = f"{candles_table}_{dataset_type}_cost_history"
+            slice_ = calculated_data.loc[
+                start:, calculated_data_columns[:5]  # type: ignore
+            ]
+            slice_.index = slice_.index.astype(str)
+            slice_.index.name = "date"
+            slice_.to_sql(
+                con = con,
+                schema = "datasets",
+                name = table_name,
+                if_exists = if_exists,
+                index = True,
+            )
 
-                    )
-        elif mode == "update":
-            for candles_table in candles_tables:
-                candles = self.common_sql_req(
-                    sql=f'SELECT DISTINCT * FROM candles."{candles_table}" ORDER BY date DESC LIMIT 1000'
-                )
-                if candles is None:
-                    continue
-                candles.drop_duplicates(inplace=True)
-                candles.sort_values(by="date", ascending=False, inplace=True)
-                indicators_calculator = IndicatorsCalculator(candles)
-                calculated_data = indicators_calculator.calculate_indicators()
-                calculated_data_columns = calculated_data.columns
-
-                for prefix in ["validation", "total"]:
-                    table_name = f"{candles_table}_{prefix}_cost_history"
-                    slice_ = calculated_data[calculated_data_columns[:5]]
-                    dates_from_slice = (
-                        "(" + ",".join([f"'{i}'" for i in slice_.index]) + ")"
-                    )
-                    old_cost_history = self.common_sql_req(
-                        sql=f'SELECT DISTINCT * FROM candles."{table_name}" WHERE date not in {dates_from_slice} ORDER BY date DESC'
-                    )
-                    if old_cost_history is None:
-                        old_cost_history = pd.DataFrame()
-                    else:
-                        old_cost_history = old_cost_history.set_index("date")
-
-                    data = pd.concat([slice_, old_cost_history]).sort_values(
-                        by="date", ascending=False
-                    )
-                    data.to_sql(
-                        con=con,
-                        schema="datasets",
-                        name=table_name,
-                        if_exists="replace",
-                        index=True,
-                    )
-
-                for prefix in ["validation", "total"]:
-                    table_name = f"{candles_table}_{prefix}_indicators"
-                    slice_ = calculated_data[calculated_data_columns[5:]]
-                    dates_from_slice = (
-                        "(" + ",".join([f"'{i}'" for i in slice_.index]) + ")"
-                    )
-                    old_indicators = self.common_sql_req(
-                        sql=f'SELECT DISTINCT * FROM candles."{table_name}" WHERE date not in {dates_from_slice} ORDER BY date DESC'
-                    )
-                    if old_indicators is None:
-                        old_indicators = pd.DataFrame()
-                    else:
-                        old_indicators = old_indicators.set_index("date")
-                    data = pd.concat([slice_, old_indicators]).sort_values(
-                        by="date", ascending=False
-                    )
-                    data.to_sql(
-                        con=con,
-                        schema="datasets",
-                        name=table_name,
-                        if_exists="replace",
-                        index=True,
-                    )
+            table_name = f"{candles_table}_{dataset_type}_indicators"
+            slice_ = calculated_data.loc[
+                start:, calculated_data_columns[5:]  # type: ignore
+            ]
+            slice_.index = slice_.index.astype(str)
+            slice_.index.name = "date"
+            slice_.to_sql(
+                con = con,
+                schema = "datasets",
+                name = table_name,
+                if_exists = if_exists,
+                index = True,
+            )
 
     @with_connection
     def get_trading_log(
@@ -1734,7 +1663,8 @@ class DataManager:
             i for i in features_names if i[: len("set_")] != "set_"
         ]
         return features_names
-
+    
+    @with_connection
     def get_last_update_date(
         self, ticker: str, con: Optional["sqlalchemy.engine.Connection"] = None
     ) -> Optional[datetime.datetime]:
@@ -1753,5 +1683,27 @@ class DataManager:
             # Исправлено: берем первые 10 символов (YYYY-MM-DD) и парсим
             date_str = result[0][:10]
             return datetime.datetime.strptime(date_str, "%Y-%m-%d")
+        # Для других типов (date) преобразуем в datetime
+        return datetime.datetime.combine(result[0], datetime.time.min)
+    
+    @with_connection
+    def get_last_update_dt(
+        self, ticker: str, con: Optional["sqlalchemy.engine.Connection"] = None
+    ) -> Optional[datetime.datetime]:
+        if con is None:
+            raise ValueError(
+                "Database connection 'con' is required and cannot be None"
+            )
+        table_name = f"candles.{ticker.lower()}_hour"
+        sql = f"SELECT max(date) FROM {table_name}"
+        result = con.execute(text(sql)).fetchone()
+        if result is None or result[0] is None:
+            return None
+        if isinstance(result[0], datetime.datetime):
+            return result[0]
+        if isinstance(result[0], str):
+            # Исправлено: берем первые 1 символов (YYYY-MM-DD) и парсим
+            date_str = result[0][:19]
+            return datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
         # Для других типов (date) преобразуем в datetime
         return datetime.datetime.combine(result[0], datetime.time.min)
