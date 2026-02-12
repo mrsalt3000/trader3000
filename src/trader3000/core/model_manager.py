@@ -115,13 +115,11 @@ class ModelManager:
             print("Confusion Matrix:\n", confusion_matrix(y_validation, y_pred))
             print("ROC-AUC:", roc_auc)
         
-            stats = {
-                "validation":{
+            stats["validation"] = {
                     "accuracy": accuracy,
                     "classification_report":classification_report_result,
                     "roc_auc":roc_auc
                     }
-            }
         
         date_created = str(datetime.datetime.now())[:10]
         return model, stats, ticker, features, date_created
