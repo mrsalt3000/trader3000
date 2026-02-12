@@ -156,9 +156,7 @@ class DataManager:
                             time.sleep(60)
                     else:
                         # Проверим дату последнего обновления по тикеру
-                        last_update_date = self.get_last_update_date(
-                            ticker, con
-                        )
+                        last_update_date = self.get_last_update_date(ticker)
                         if last_update_date is None:
                             # Если даты нет — удаляем
                             delete = True
@@ -1664,46 +1662,36 @@ class DataManager:
         ]
         return features_names
     
-    @with_connection
     def get_last_update_date(
-        self, ticker: str, con: Optional["sqlalchemy.engine.Connection"] = None
-    ) -> Optional[datetime.datetime]:
-        if con is None:
-            raise ValueError(
-                "Database connection 'con' is required and cannot be None"
-            )
+        self, ticker: str
+        ) -> Optional[datetime.datetime]:
         table_name = f"candles.{ticker.lower()}_hour"
         sql = f"SELECT max(date) FROM {table_name}"
-        result = con.execute(text(sql)).fetchone()
+        result = self.common_sql_req(sql).values[0][0]
         if result is None or result[0] is None:
             return None
         if isinstance(result[0], datetime.datetime):
             return result[0]
         if isinstance(result[0], str):
             # Исправлено: берем первые 10 символов (YYYY-MM-DD) и парсим
-            date_str = result[0][:10]
+            date_str = result[:10]
             return datetime.datetime.strptime(date_str, "%Y-%m-%d")
         # Для других типов (date) преобразуем в datetime
         return datetime.datetime.combine(result[0], datetime.time.min)
     
-    @with_connection
     def get_last_update_dt(
-        self, ticker: str, con: Optional["sqlalchemy.engine.Connection"] = None
-    ) -> Optional[datetime.datetime]:
-        if con is None:
-            raise ValueError(
-                "Database connection 'con' is required and cannot be None"
-            )
+        self, ticker: str
+        ) -> Optional[datetime.datetime]:
         table_name = f"candles.{ticker.lower()}_hour"
         sql = f"SELECT max(date) FROM {table_name}"
-        result = con.execute(text(sql)).fetchone()
+        result = self.common_sql_req(sql).values[0][0]
         if result is None or result[0] is None:
             return None
         if isinstance(result[0], datetime.datetime):
             return result[0]
         if isinstance(result[0], str):
             # Исправлено: берем первые 1 символов (YYYY-MM-DD) и парсим
-            date_str = result[0][:19]
+            date_str = result[:19]
             return datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
         # Для других типов (date) преобразуем в datetime
         return datetime.datetime.combine(result[0], datetime.time.min)
