@@ -320,7 +320,13 @@ class DataManager:
                 if_exists = "replace"
             elif mode == "update":
                 ticker = candles_table.split("_")[0]
-                last_saved_candle = self.get_last_update_dt(ticker)
+                sql = f"""
+                SELECT 
+                    max(date)
+                    FROM datasets.{ticker}_hour_total_indicators
+                """
+                last_saved_candle =  self.common_sql_req(sql).values[0][0]
+                last_saved_candle = datetime.datetime.strptime(last_saved_candle[:19], "%Y-%m-%d %H:%M:%S")
                 start = last_saved_candle + datetime.timedelta(hours=1)
                 if_exists = "append"
 
@@ -571,7 +577,7 @@ class DataManager:
         Returns:
             None: Метод не возвращает значения.
         """
-        print("download_candles_delta len(tickers)", len(tickers))
+        print("\ndownload_candles_delta len(tickers)", len(tickers))
         for ticker in tickers:
             for time_step_resolution in time_step_resolutions:
                 if time_step_resolution == "hour":
@@ -671,23 +677,14 @@ class DataManager:
         Returns:
             None: Метод не возвращает значения.
         """
-        result = self.common_sql_req(
-            "SELECT max(date) AS ans FROM trading.schedules"
+        now = str(datetime.datetime.now())[10]
+        self.common_sql_comand(
+            f"DELETE FROM trading.schedules WHERE date > '{now}'"
         )
-        if result is None or result.empty or result["ans"].isnull().all():
-            # обработка отсутствия данных – например, начальная дата = сегодня
-            max_date_saved = datetime.datetime.now()
-        else:
-            max_date_str = result["ans"].values[0]
-            max_date_saved = datetime.datetime.strptime(
-                max_date_str[:19] + " 00:00:00", "%Y-%m-%d %H:%M:%S"
-            )
-        print("max_date_saved", max_date_saved)
-        today = datetime.datetime.now()
-        start_date = max_date_saved if max_date_saved > today else today
+        start_date = datetime.datetime.now()
         for i in range(13):
             try:
-                start_date_ = start_date + datetime.timedelta(days=i + 1)
+                start_date_ = start_date + datetime.timedelta(days=i)# + 1
                 final_date = start_date_ + datetime.timedelta(days=1)
                 print(
                     "start_date",

@@ -185,8 +185,9 @@ class ModelManager:
     def get_recomendation(self, model, ticker, features):
         last_data = self.get_last_data(ticker, features)
         if len(last_data) > 0:
-            print(ticker, "recomendation prepared")
-            return bool(model.predict(last_data)[0] == 1)
+            recomendation = bool(model.predict(last_data)[0] == 1)
+            print(ticker, "recomendation prepared:",recomendation)
+            return recomendation
         else:
             last_candle_dt = self.data_manager.common_sql_req(f"SELECT MAX(date) FROM candles.{ticker}_hour").values[0]
             print(ticker, "no data for recomendation")
