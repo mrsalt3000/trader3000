@@ -273,7 +273,7 @@ class ModelManager:
         print("days_test:", days_test)
 
         if start_treshold == None:
-            start_treshold = str(datetime.datetime.now() - datetime.timedelta(days=days_train))[:10]
+            start_treshold = str(datetime.datetime.now() - datetime.timedelta(days=(days_train + days_test)))[:10]
         if test_treshold == None:
             test_treshold = str(datetime.datetime.now() - datetime.timedelta(days=days_test))[:10]
         if increment > 0:
