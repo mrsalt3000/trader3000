@@ -611,8 +611,13 @@ class Trader:
 
     def trader_routine_preparation(self):
         print("trader_routine_preparation")
+        #Если сервис главный - он удалит расписание от СЕГОДНЯ и скачает заново
+        # Если не главный - подождет, пока расписание появится
+        # Если не ждать - может быть коллизия, неглавный будет смотреть в расписание когда главный его удалил, а новое еще не скачал
         if self.is_main_agent:
             self.data_manager.update_schedules()
+        else:
+            self.await_schedule()
         
         paths = self.model_manager.get_classifiers_paths()
         tickers_by_models = [i.split("_")[2] for i in paths]
@@ -740,3 +745,24 @@ class Trader:
             """
             self.data_manager.common_sql_comand(sql)
         print("success")
+
+    def await_schedule(self):
+        """
+        Расписание обновляет только главный контейнер
+        Может произойти коллизия когда неглавный контейнес смотрит, есть ли расписание, а оно не успело скачаться
+        Чтобы этого не было, в случае отсутствия расписания делаем задержку
+        """
+        today = str(datetime.datetime.now())[:10]
+        wait_sec = 5
+        max_attempts = 5
+        for i in range(max_attempts):
+            schedule_is_available = self.data_manager.common_sql_req(
+                        f"SELECT count(*) FROM trading.schedules  WHERE date = '{today}'"
+                    ).values[0][0] > 0
+            schedule_is_available = bool(schedule_is_available)
+            if schedule_is_available:
+                break
+            else:
+                print("schedule is unavailable, attempt:" ,i+1, "of", max_attempts)
+                time.sleep(wait_sec)
+        return schedule_is_available
