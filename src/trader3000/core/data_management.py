@@ -103,7 +103,24 @@ class DataManager:
             info = pd.read_sql(self.get_sql_table_info(table_name), con)
             data = pd.concat([data, info])
         return pd.DataFrame(data).reset_index(drop=True)
-
+    
+    def atom_get_market_trading_history(self, ticker,start_date,finish_date,time_step_resolution,):
+        n_retries = 5
+        s_wait = 30
+        for i in range(n_retries):
+            data = self.trading_manager.get_market_trading_history(
+                ticker=ticker,
+                start_date=start_date,
+                finish_date=finish_date,
+                time_step_resolution=time_step_resolution,
+            )
+            if data is not None and len(data) > 0:
+                return data
+            else:
+                print("atom_get_market_trading_history: no data, retry:", i+1)
+                time.sleep(s_wait)
+        return None
+    
     @with_connection
     def training_datasets_download(
         self,
@@ -135,7 +152,7 @@ class DataManager:
             print(ticker)
             if "@" not in ticker and "-" not in ticker:
                 for time_step_resolution in time_step_resolutions:
-                    data = self.trading_manager.get_market_trading_history(
+                    data = self.atom_get_market_trading_history(
                         ticker=ticker,
                         start_date=start_date,
                         finish_date=finish_date,
@@ -684,7 +701,7 @@ class DataManager:
         start_date = datetime.datetime.now()
         for i in range(13):
             try:
-                start_date_ = start_date + datetime.timedelta(days=i)# + 1
+                start_date_ = start_date + datetime.timedelta(days=i)#
                 final_date = start_date_ + datetime.timedelta(days=1)
                 print(
                     "start_date",

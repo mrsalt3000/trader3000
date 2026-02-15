@@ -269,6 +269,8 @@ class ModelManager:
 
         days_train = int(365 * days_train_rate)
         days_test = int(365 // days_test_rate)
+        print("days_train:", days_train)
+        print("days_test:", days_test)
 
         if start_treshold == None:
             start_treshold = str(datetime.datetime.now() - datetime.timedelta(days=days_train))[:10]
@@ -284,6 +286,7 @@ class ModelManager:
         #Сколько сделок должно быть в тестовом периоде
         #Отсекаем акции, корторые мало торгуются
         support_treshold = days_test * support_treshold_rate
+        print("support_treshold:", support_treshold)
            
         path_root = self.models_root
         process_stats=[]
@@ -294,8 +297,8 @@ class ModelManager:
             print("\n","="*10,ticker,"="*10)
             try:
                 model, stats, ticker, features, date_created = self.get_experiment_result(ticker, shift, increment,start_treshold, test_treshold)
-                f1 = stats["classification_report"]["macro avg"]["f1-score"]
-                support = stats["classification_report"]["1"]["support"]
+                f1 = stats["test"]["classification_report"]["macro avg"]["f1-score"]
+                support = stats["test"]["classification_report"]["1"]["support"]
                 print("f1:",round(f1,2),"support:",int(support))
         
                 process_stats.append(
@@ -308,7 +311,7 @@ class ModelManager:
             except Exception as e:
                 print("error:",e)
 
-    def get_clssifiers_tickers(self, model_type = "topline"):
+    def get_classifiers_tickers(self, model_type = "topline"):
         model_names = self.get_classifiers_paths(model_type = model_type)
         return [i.split("_")[2].upper() for i in model_names]
     
@@ -325,9 +328,9 @@ class ModelManager:
             days_test_rate = 2,
             ):
         print("get_classifiers_bottomline")
-        topline_classifiers = self.get_clssifiers_tickers(model_type = "topline")
+        topline_classifiers = self.get_classifiers_tickers(model_type = "topline")
         if mode == "add":
-            bottomline_classifiers = self.get_clssifiers_tickers(model_type = "bottomline")
+            bottomline_classifiers = self.get_classifiers_tickers(model_type = "bottomline")
             target_tickers = [i for i in topline_classifiers if i not in bottomline_classifiers]
         elif mode == "replace":
             target_tickers = topline_classifiers
