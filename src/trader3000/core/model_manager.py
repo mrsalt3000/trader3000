@@ -30,7 +30,7 @@ class ModelManager:
         print("self.models_root",self.models_root)
         print("os.listdir(self.models_root)",os.listdir(self.models_root))
 
-    def get_experiment_result(self, ticker, shift, increment_p,start_treshold, test_treshold, validation_treshold = None):
+    def create_dataset(self, increment_p, shift, ticker,start_treshold, test_treshold, validation_treshold = None):
         indicators = self.data_manager.common_sql_req(f"SELECT * FROM datasets.{ticker}_hour_total_indicators")
         if increment_p > 0:
             max_min = "MAX"
@@ -65,12 +65,12 @@ class ModelManager:
         
         del dataset["close"]
         del dataset['target_within_n']
-        
         X = dataset[features].dropna(); y = dataset['target'].loc[X.index]
-        
+
         X_train = X.loc[start_treshold:test_treshold]
         if validation_treshold == None:
             X_test  = X.loc[test_treshold:]
+            X_validation = y_validation = None
         else:
             X_test  = X.loc[test_treshold:validation_treshold]
             X_validation  = X.loc[validation_treshold:]
@@ -78,7 +78,12 @@ class ModelManager:
     
         y_train = dataset['target'].loc[X_train.index]
         y_test  = dataset['target'].loc[X_test.index]
-        
+
+        return X_train, X_test, X_validation, y_train, y_test, y_validation, features
+    
+    def get_experiment_result(self, ticker, shift, increment_p,start_treshold, test_treshold, validation_treshold = None):
+
+        X_train, X_test, X_validation, y_validation, y_train, y_test, features = self.create_dataset(self, increment_p, shift, ticker, start_treshold, test_treshold, validation_treshold = None)
         
         model = RandomForestClassifier(n_estimators=100)#, random_state=42
         model.fit(X_train, y_train)
