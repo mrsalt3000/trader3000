@@ -2,9 +2,10 @@ services:
   jupyter:
     image: mrsalt3000/trader3000:dev-latest
     ports:
-      - "8888:8888"   # JupyterLab
+      - "8888:8888" 
     volumes:
       - E:/work/2. trader3000/jupyter:/home/jovyan/work
+      - models:/home/jovyan/work/models
     command:
       - sh
       - -c
@@ -49,7 +50,7 @@ services:
     image: mrsalt3000/trader3000:latest
     volumes:
       - ../src:/app
-      - ../models/playground:/models
+      - ../models/playground:/app/models
     command: sh -c "python -m trader3000.trader_routine.main" 
     depends_on:
       postgres:
@@ -68,7 +69,7 @@ services:
     image: mrsalt3000/trader3000:latest
     volumes:
       - ../src:/app
-      - ../models/mono/mtlr:/models
+      - ../models/mono/mtlr:/app/models
     command: sh -c "python -m trader3000.trader_routine.main" 
     depends_on:
       postgres:

@@ -14,7 +14,7 @@ from .data_management import DataManager
 from .tinkoff_trading import TinkoffTrading
 import sys
 from pathlib import Path
-MODELS_PATH = Path("/models")  # ← Volume монтируется сюда!
+MODELS_PATH = Path("models")  # ← Volume монтируется сюда!
 
 
 class ModelManager:
