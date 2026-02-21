@@ -34,17 +34,17 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - TINVEST_TOKEN=${TINVEST_TOKEN_PLAYGROUND}
       - DEFAULT_STOP_LOSS_RATE=${DEFAULT_STOP_LOSS_RATE}
-  vscode:
-    image: codercom/code-server:latest 
-    ports:
-      - "8080:8080"
-    volumes:
-      - E:/work/2. trader3000/jupyter:/home/coder/project 
-      - vscode-data:/home/coder/.local/share/code-server 
-    environment:
-      - TZ=${TZ}
-    command: --bind-addr 0.0.0.0:8080 --auth none
-    restart: unless-stopped
+  # vscode:
+  #   image: codercom/code-server:latest 
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - E:/work/2. trader3000/jupyter:/home/coder/project 
+  #     - vscode-data:/home/coder/.local/share/code-server 
+  #   environment:
+  #     - TZ=${TZ}
+  #   command: --bind-addr 0.0.0.0:8080 --auth none
+  #   restart: unless-stopped
   trader_playground:
     image: mrsalt3000/trader3000:latest
     volumes:

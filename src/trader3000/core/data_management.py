@@ -351,7 +351,7 @@ class DataManager:
             slice_ = calculated_data.loc[
                 start:, calculated_data_columns[:5]  # type: ignore
             ]
-            slice_.index = slice_.index.astype(str)
+            slice_.index = slice_.index.strftime('%Y-%m-%d %H:%M:%S')
             slice_.index.name = "date"
             slice_.to_sql(
                 con = con,
@@ -365,7 +365,7 @@ class DataManager:
             slice_ = calculated_data.loc[
                 start:, calculated_data_columns[5:]  # type: ignore
             ]
-            slice_.index = slice_.index.astype(str)
+            slice_.index = slice_.index.strftime('%Y-%m-%d %H:%M:%S')
             slice_.index.name = "date"
             slice_.to_sql(
                 con = con,
