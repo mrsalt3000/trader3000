@@ -83,7 +83,7 @@ class ModelManager:
     
     def get_experiment_result(self, ticker, shift, increment_p,start_treshold, test_treshold, validation_treshold = None):
 
-        X_train, X_test, X_validation, y_validation, y_train, y_test, features = self.create_dataset(self, increment_p, shift, ticker, start_treshold, test_treshold, validation_treshold = None)
+        X_train, X_test, X_validation, y_validation, y_train, y_test, features = self.create_dataset(increment_p, shift, ticker, start_treshold, test_treshold, validation_treshold = None)
         
         model = RandomForestClassifier(n_estimators=100)#, random_state=42
         model.fit(X_train, y_train)
@@ -261,8 +261,7 @@ class ModelManager:
             support_treshold_rate = 5,
             shift = 50,
             increment = 0.02,
-            start_treshold = None,
-            test_treshold = None,
+
             tickers = [],
             days_train_rate = 1.5,
             days_test_rate = 2,
@@ -277,10 +276,8 @@ class ModelManager:
         print("days_train:", days_train)
         print("days_test:", days_test)
 
-        if start_treshold == None:
-            start_treshold = str(datetime.datetime.now() - datetime.timedelta(days=(days_train + days_test)))[:10]
-        if test_treshold == None:
-            test_treshold = str(datetime.datetime.now() - datetime.timedelta(days=days_test))[:10]
+        start_treshold = str(datetime.datetime.now() - datetime.timedelta(days=(days_train + days_test)))[:10]
+        test_treshold = str(datetime.datetime.now() - datetime.timedelta(days=days_test))[:10]
         if increment > 0:
             model_type = "topline"
         elif increment < 0:

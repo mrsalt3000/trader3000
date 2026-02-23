@@ -771,63 +771,63 @@ class Trader:
                 time.sleep(wait_sec)
         return schedule_is_available
     
-def cancel_stop_orders_by_rancid(self):
-    sql = """
-    SELECT 
-        sell_order_id,
-        stop_loss_order_id
-    FROM transaction.transactions
-    WHERE status = 'rancid_sold_market'
-      AND (sell_order_id IS NOT NULL OR stop_loss_order_id IS NOT NULL)
-    ORDER BY buy_dt DESC
-    """
-    data = self.data_manager.common_sql_req(sql)
-    
-    sell_order_ids = [row[0] for row in data.itertuples(index=False, name=None) if pd.notna(row[0])]
-    stop_loss_order_ids = [row[1] for row in data.itertuples(index=False, name=None) if pd.notna(row[1])]
-    
-    print(f"Sell orders: {len(sell_order_ids)}, Stop-loss: {len(stop_loss_order_ids)}") 
-    
-    def cancel_stop_order(order_id: str, order_type: str, account_id: str, token: str) -> bool:
+    def cancel_stop_orders_by_rancid(self):
+        sql = """
+        SELECT 
+            sell_order_id,
+            stop_loss_order_id
+        FROM transaction.transactions
+        WHERE status = 'rancid_sold_market'
+        AND (sell_order_id IS NOT NULL OR stop_loss_order_id IS NOT NULL)
+        ORDER BY buy_dt DESC
         """
-        Отменяет стоп-ордер через Tinkoff API и обновляет БД.
+        data = self.data_manager.common_sql_req(sql)
         
-        Args:
-            order_id: ID стоп-ордера.
-            order_type: 'sell_order_id' или 'stop_loss_order_id'.
-            account_id: ID счёта.
-            token: Токен API.
+        sell_order_ids = [row[0] for row in data.itertuples(index=False, name=None) if pd.notna(row[0])]
+        stop_loss_order_ids = [row[1] for row in data.itertuples(index=False, name=None) if pd.notna(row[1])]
         
-        Returns:
-            True если успешно отменён.
-        """
-        if not order_id:
+        print(f"Sell orders: {len(sell_order_ids)}, Stop-loss: {len(stop_loss_order_ids)}") 
+        
+        def cancel_stop_order(order_id: str, order_type: str, account_id: str, token: str) -> bool:
+            """
+            Отменяет стоп-ордер через Tinkoff API и обновляет БД.
+            
+            Args:
+                order_id: ID стоп-ордера.
+                order_type: 'sell_order_id' или 'stop_loss_order_id'.
+                account_id: ID счёта.
+                token: Токен API.
+            
+            Returns:
+                True если успешно отменён.
+            """
+            if not order_id:
+                return True
+            
+            try:
+                with self.trading_manager.client(token) as client:
+                    client.stop_orders.cancel_stop_order(
+                        account_id=account_id,
+                        stop_order_id=order_id,
+                    )
+                    
+            except RequestError as e:
+                print(type(e))
+                print(e)    
+                
+            sql = f"""
+                UPDATE transaction.transactions 
+                SET {order_type} = NULL 
+                WHERE {order_type} = '{order_id}'
+            """
+            self.data_manager.common_sql_comand(sql)
             return True
         
-        try:
-            with self.trading_manager.client(token) as client:
-                client.stop_orders.cancel_stop_order(
-                    account_id=account_id,
-                    stop_order_id=order_id,
-                )
-                
-        except RequestError as e:
-            print(type(e))
-            print(e)    
-            
-        sql = f"""
-            UPDATE transaction.transactions 
-            SET {order_type} = NULL 
-            WHERE {order_type} = '{order_id}'
-        """
-        self.data_manager.common_sql_comand(sql)
-        return True
-    
-    all_order_ids = sell_order_ids + stop_loss_order_ids
-    successful_cancels = 0
-    
-    for order_id in all_order_ids:
-        order_type = "sell_order_id" if order_id in sell_order_ids else "stop_loss_order_id"
-        if cancel_stop_order(order_id, order_type, self.trading_manager.account_id, self.trading_manager.token):
-            successful_cancels += 1
-    print("successful_cancels:",successful_cancels)
+        all_order_ids = sell_order_ids + stop_loss_order_ids
+        successful_cancels = 0
+        
+        for order_id in all_order_ids:
+            order_type = "sell_order_id" if order_id in sell_order_ids else "stop_loss_order_id"
+            if cancel_stop_order(order_id, order_type, self.trading_manager.account_id, self.trading_manager.token):
+                successful_cancels += 1
+        print("successful_cancels:",successful_cancels)
