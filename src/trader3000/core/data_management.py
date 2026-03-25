@@ -1391,7 +1391,7 @@ class DataManager:
             "tickers total",
         )
         tickers = [t for t in tickers if t in all_tickers_from_candles]
-        if lag > 2:
+        if lag > 1:
             print("downloading updates")
             self.download_candles_delta(tickers)
         print("candles data up to date", "\n")
@@ -1605,9 +1605,8 @@ class DataManager:
         """
         Создает таблицу 'scope' в схеме 'tickers', содержащую уникальный список тикеров.
 
-        Извлекает имена таблиц из схемы 'candles', очищает их от префикса 'candles_' и суффикса '_hour',
-        формирует уникальный список тикеров, сохраняет его в таблицу 'tickers.scope' с заменой существующих данных,
-        выводит сообщение об успешном создании и возвращает DataFrame с тикерами.
+        Получает список всех тикеров по апи, потом достает только российские, с расписанием и доступные для торговли по апи
+        Сохраняет результат в базу с перезаписью и возвращает датафреймом
 
         Args:
             con (sqlalchemy.engine.Connection | None, optional): Активное подключение к базе данных.
@@ -1615,14 +1614,15 @@ class DataManager:
         Returns:
             pd.DataFrame: DataFrame со списком уникальных тикеров.
         """
-        tickers = list(
-            set(
-                [
-                    i.replace("candles_", "").replace("_hour", "")
-                    for i in self.get_table_names_by_schema("candles")
-                ]
-            )
-        )
+        tickers = [
+            i for i in self.trading_manager.get_all_stocks() 
+            if i.get("schedule") != "unknown" 
+            and i["type"] == "stock" 
+            and i["currency"] == "rub" 
+            and i["api_trade_available_flag"] 
+            and i["is_available_for_trading"]
+            and not i["for_qual_investor_flag"]
+        ]
         tickers_df = pd.DataFrame(tickers, columns=["ticker"])
         tickers_df.to_sql(
             con=con,

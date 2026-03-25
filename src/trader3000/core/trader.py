@@ -298,7 +298,11 @@ class Trader:
         WHERE execution_report_status = 'EXECUTION_REPORT_STATUS_NEW'
             AND account_id = '{self.trading_manager.account_id}'
         """
-        return self.data_manager.common_sql_req(sql)["order_id"].values
+        result = self.data_manager.common_sql_req(sql)
+        if len(result) >= 1:
+            return result["order_id"].values
+        else:
+            return None
 
     def update_order_statuses(self) -> None:
         """Обновляет статусы новых ордеров в базе данных.
