@@ -1377,12 +1377,12 @@ class DataManager:
         """
         print("update_training_data", len(tickers), "tickers total")
         ticker = random.choice(tickers)
-        try:
+        if self.check_if_table_exists(f"candles.{ticker}_hour"):
             result = self.common_sql_req(
                 f"SELECT max(date) FROM candles.{ticker}_hour"
             )
-        except:
-            result = None
+        else:
+            result = "2019-01-01 00:00:00"
         if result is None:
             raise ValueError(f"No data returned for ticker {ticker}")
         max_available_date = result.values[0][0]
