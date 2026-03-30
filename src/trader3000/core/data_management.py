@@ -1622,7 +1622,7 @@ class DataManager:
             pd.DataFrame: DataFrame со списком уникальных тикеров.
         """
         tickers = [
-            i for i in self.trading_manager.get_all_stocks() 
+            i.lower() for i in self.trading_manager.get_all_stocks() 
             if i.get("schedule") != "unknown" 
             and i["type"] == "stock" 
             and i["currency"] == "rub" 
