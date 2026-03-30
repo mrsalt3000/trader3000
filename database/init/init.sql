@@ -43,3 +43,5 @@ CREATE TABLE IF NOT EXISTS trading.schedules (
 );
 
 CREATE SCHEMA IF NOT EXISTS datasets;
+
+CREATE SCHEMA IF NOT EXISTS tickers;

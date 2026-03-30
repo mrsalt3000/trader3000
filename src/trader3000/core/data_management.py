@@ -1566,7 +1566,6 @@ class DataManager:
             """
             result = self.common_sql_req(sql)
             if result is None:
-                # Обработка отсутствия результата, например, вернуть пустой список
                 return []
             return list(result["ticker"].values)
         else:
@@ -1631,6 +1630,7 @@ class DataManager:
             and i["is_available_for_trading"]
             and not i["for_qual_investor_flag"]
         ]
+        print(f"found {len(tickers)} for scope")
         tickers_df = pd.DataFrame(tickers, columns=["ticker"])
         tickers_df.to_sql(
             con=con,
