@@ -337,13 +337,7 @@ class DataManager:
                 if_exists = "replace"
             elif mode == "update":
                 ticker = candles_table.split("_")[0]
-                sql = f"""
-                SELECT 
-                    max(date)
-                    FROM datasets.{ticker}_hour_total_indicators
-                """
-                last_saved_candle =  self.common_sql_req(sql).values[0][0]
-                last_saved_candle = datetime.datetime.strptime(last_saved_candle[:19], "%Y-%m-%d %H:%M:%S")
+                last_saved_candle =  self.get_last_update_date(ticker)
                 start = last_saved_candle + datetime.timedelta(hours=1)
                 if_exists = "append"
 
@@ -560,19 +554,30 @@ class DataManager:
             datetime.datetime: Дата и время последней свечи с учетом часового пояса UTC.
         """
         sql = f"""
+        CREATE SCHEMA IF NOT EXISTS candles;
+        CREATE TABLE IF NOT EXISTS candles.{ticker.lower()}_{time_step_resolution} (
+
+            date   TEXT,
+            open   FLOAT,
+            high   FLOAT,
+            low    FLOAT,
+            close  FLOAT,
+            volume FLOAT
+        );
         SELECT
             max(date) AS ans
         FROM candles.{ticker.lower()}_{time_step_resolution}
         """
         result = self.common_sql_req(sql)
         if result is None or result.empty or result["ans"].isnull().all():
-            raise ValueError(
-                f"No candle data found for ticker {ticker} with resolution {time_step_resolution}"
-            )
-        last_dt_str = result["ans"].values[0]
-        last_dt = datetime.datetime.strptime(
-            last_dt_str, "%Y-%m-%d %H:%M:%S"
-        ).replace(tzinfo=datetime.timezone.utc)
+            last_dt = datetime.datetime.strptime(
+                "2022-01-01 00:00:00", "%Y-%m-%d %H:%M:%S"
+            ).replace(tzinfo=datetime.timezone.utc)
+        else:
+            last_dt_str = result["ans"].values[0]
+            last_dt = datetime.datetime.strptime(
+                last_dt_str, "%Y-%m-%d %H:%M:%S"
+            ).replace(tzinfo=datetime.timezone.utc)
         return last_dt
 
     def download_candles_delta(
@@ -694,7 +699,7 @@ class DataManager:
         Returns:
             None: Метод не возвращает значения.
         """
-        now = str(datetime.datetime.now())[10]
+        now = str(datetime.datetime.now())[:10]
         self.common_sql_comand(
             f"DELETE FROM trading.schedules WHERE date > '{now}'"
         )
@@ -877,9 +882,12 @@ class DataManager:
         timeline = []
         for day in schedule.to_dict("records"):
             timesteps_within = day["work_seconds"] // timestep_seconds
-            start_time = datetime.datetime.strptime(
-                day["start_time"][:19], "%Y-%m-%d %H:%M:%S"
-            )
+            if isinstance(day, str):
+                start_time = datetime.datetime.strptime(
+                    day["start_time"][:19], "%Y-%m-%d %H:%M:%S"
+                )
+            else:
+                start_time = day["start_time"]
             for t in range(timesteps_within + 1):
                 item = (start_time
                     + datetime.timedelta(seconds=timestep_seconds * t)).replace(tzinfo=ZoneInfo("UTC"))

@@ -222,11 +222,11 @@ class Trader:
                 resolution=self.timestep_resolution,
                 steps=1,
             )
-    
+
             next_iter_start_by_resolution += datetime.timedelta(
                 seconds=self.delay_seconds
             )
-    
+
             seconds_to_sleep = (
                 next_iter_start_by_resolution - self.get_now("dt")
             ).seconds
@@ -239,7 +239,7 @@ class Trader:
         except:
             print("Failed to get schedule info. Sleeping 1 hour")
             seconds_to_sleep = 60*57
-        # print(seconds_to_sleep)
+        print(seconds_to_sleep)
         time.sleep(seconds_to_sleep)
 
     def get_now(self, mode: str = "str") -> Union[str, datetime.datetime]:
@@ -302,7 +302,7 @@ class Trader:
         if len(result) >= 1:
             return result["order_id"].values
         else:
-            return None
+            return []
 
     def update_order_statuses(self) -> None:
         """Обновляет статусы новых ордеров в базе данных.
@@ -764,10 +764,14 @@ class Trader:
         wait_sec = 5
         max_attempts = 5
         for i in range(max_attempts):
-            schedule_is_available = self.data_manager.common_sql_req(
+            result = self.data_manager.common_sql_req(
                         f"SELECT count(*) FROM trading.schedules  WHERE date = '{today}'"
-                    ).values[0][0] > 0
-            schedule_is_available = bool(schedule_is_available)
+                    )
+            if result is not None:
+                schedule_is_available = result.values[0][0] > 0
+                schedule_is_available = bool(schedule_is_available)
+            else:
+                schedule_is_available = False
             if schedule_is_available:
                 break
             else:
