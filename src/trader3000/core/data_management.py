@@ -1381,11 +1381,10 @@ class DataManager:
             result = self.common_sql_req(
                 f"SELECT max(date) FROM candles.{ticker}_hour"
             )
+            max_available_date = result.values[0][0]
         else:
-            result = "2019-01-01 00:00:00"
-        if result is None:
-            raise ValueError(f"No data returned for ticker {ticker}")
-        max_available_date = result.values[0][0]
+            max_available_date = "2019-01-01 00:00:00"
+        
         if max_available_date is None:
             raise ValueError(f"No max date found for ticker {ticker}")
         max_available_date = max_available_date[:10]
