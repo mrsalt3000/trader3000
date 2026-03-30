@@ -1400,7 +1400,7 @@ class DataManager:
             len(all_tickers_from_candles),
             "tickers total",
         )
-        tickers = [t for t in tickers if t in all_tickers_from_candles]
+        tickers = [t for t in tickers]
         if lag > 1:
             print("downloading updates")
             self.download_candles_delta(tickers)
