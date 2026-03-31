@@ -577,7 +577,7 @@ class DataManager:
         result = self.common_sql_req(sql)
         if result is None or result.empty or result["ans"].isnull().all():
             last_dt = datetime.datetime.strptime(
-                "2022-01-01 00:00:00", "%Y-%m-%d %H:%M:%S"
+                "2024-01-01 00:00:00", "%Y-%m-%d %H:%M:%S"
             ).replace(tzinfo=datetime.timezone.utc)
         else:
             last_dt_str = result["ans"].values[0]
