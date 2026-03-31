@@ -317,9 +317,12 @@ class DataManager:
 
         for candles_table in candles_tables:
             print(candles_table)
-            candles = self.common_sql_req(
-                sql=f'SELECT DISTINCT * FROM candles."{candles_table}" ORDER BY date DESC'
-            )
+            sql=f'SELECT * FROM candles."{candles_table}"'
+            candles = self.common_sql_req(sql)
+            if candles is None:
+                continue
+            candles.drop_duplicates(inplace=True)
+            candles.sort_values("date", ascending=False, inplace=True)
             if candles is None:
                 continue
             candles.drop_duplicates(inplace=True)
@@ -333,12 +336,15 @@ class DataManager:
             dataset_type = "total"
             
             if mode == "total":
-                start = datetime.datetime(1900, 1, 1, 0, 0)
+                start = datetime.datetime(2024, 1, 1, 0, 0)
                 if_exists = "replace"
             elif mode == "update":
                 ticker = candles_table.split("_")[0]
                 last_saved_candle =  self.get_last_update_date(ticker)
-                start = last_saved_candle + datetime.timedelta(hours=1)
+                if last_saved_candle is None:
+                    start = datetime.datetime(2024, 1, 1, 0, 0)
+                else:
+                    start = last_saved_candle + datetime.timedelta(hours=1)
                 if_exists = "append"
 
             table_name = f"{candles_table}_{dataset_type}_cost_history"
@@ -1383,7 +1389,7 @@ class DataManager:
             )
             max_available_date = result.values[0][0]
         else:
-            max_available_date = "2019-01-01 00:00:00"
+            max_available_date = "2024-01-01 00:00:00"
         
         if max_available_date is None:
             raise ValueError(f"No max date found for ticker {ticker}")
