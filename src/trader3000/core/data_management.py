@@ -323,9 +323,6 @@ class DataManager:
                 continue
             candles.drop_duplicates(inplace=True)
             candles.sort_values("date", ascending=False, inplace=True)
-            if candles is None:
-                continue
-            candles.drop_duplicates(inplace=True)
             indicators_calculator = IndicatorsCalculator(candles)
             #print("max(indicators_calculator.data[date]):",max(indicators_calculator.data.index))
             calculated_data = indicators_calculator.calculate_indicators()
