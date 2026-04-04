@@ -317,9 +317,14 @@ class DataManager:
 
         for candles_table in candles_tables:
             print(candles_table)
+            ticker = candles_table.split("_")[0]
             sql=f'SELECT * FROM candles."{candles_table}"'
             candles = self.common_sql_req(sql)
             print(f"got {len(candles)} rows from candles")
+            if candles is None or len(candles) == 0:
+                print("No candles to compute features, loading")
+                self.update_training_data([ticker])
+                candles = self.common_sql_req(sql)
             if candles is None or len(candles) == 0:
                 print("No candles to compute features, skipping")
                 continue
