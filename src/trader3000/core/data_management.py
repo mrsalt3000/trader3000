@@ -366,7 +366,7 @@ class DataManager:
             ]
             slice_.index = slice_.index.strftime('%Y-%m-%d %H:%M:%S')
             slice_.index.name = "date"
-            print(f"writing {len(slice_)} rows of dataset")
+            print(f"writing {len(slice_)} rows")
             slice_.to_sql(
                 con = con,
                 schema = "datasets",
