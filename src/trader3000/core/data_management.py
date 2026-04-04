@@ -319,7 +319,9 @@ class DataManager:
             print(candles_table)
             sql=f'SELECT * FROM candles."{candles_table}"'
             candles = self.common_sql_req(sql)
-            if candles is None:
+            print(f"got {len(candles)} rows from candles")
+            if candles is None or len(candles) == 0:
+                print("No candles to compute features, skipping")
                 continue
             candles.drop_duplicates(inplace=True)
             candles.sort_values("date", ascending=False, inplace=True)
@@ -364,6 +366,7 @@ class DataManager:
             ]
             slice_.index = slice_.index.strftime('%Y-%m-%d %H:%M:%S')
             slice_.index.name = "date"
+            print(f"writing {len(slice_)} rows")
             slice_.to_sql(
                 con = con,
                 schema = "datasets",
