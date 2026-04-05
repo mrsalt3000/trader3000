@@ -304,8 +304,14 @@ class ModelManager:
             print("\n","="*10,ticker,"="*10)
             # try:
             model, stats, ticker, features, date_created = self.get_experiment_result(ticker, shift, increment,start_treshold, test_treshold)
-            f1 = stats["test"]["classification_report"]["macro avg"]["f1-score"]
-            support = stats["test"]["classification_report"]["1"]["support"]
+            cr = stats["test"]["classification_report"]
+            f1 = cr["macro avg"]["f1-score"]
+            
+            # безопасно достаём support для класса 1, если он есть
+            support_class_1 = cr.get("1", {}).get("support", 0)
+            
+            # если хочешь ориентироваться именно на сделки (класс 1)
+            support = support_class_1
             print("f1:",round(f1,2),"support:",int(support))
     
             process_stats.append(
