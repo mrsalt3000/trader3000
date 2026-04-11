@@ -356,8 +356,6 @@ class ModelManager:
                 support_treshold_rate = support_treshold_rate,
                 shift = shift,
                 increment = increment,
-                start_treshold = start_treshold,
-                test_treshold = test_treshold,
                 tickers = target_tickers,
                 days_train_rate = days_train_rate,
                 days_test_rate = days_test_rate,
