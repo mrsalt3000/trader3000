@@ -25,6 +25,7 @@ class ModelManager:
         self.trading_manager = TinkoffTrading(
             os.getenv("TINVEST_TOKEN"), Client
         )
+        self.bottomline_mode = os.getenv("BOTTOMLINE_MODE")
         self.data_manager = DataManager(self.trading_manager)
         self.models_root = models_root
         print("self.models_root",self.models_root)
@@ -224,7 +225,8 @@ class ModelManager:
         advice = self.get_recomendation(model, ticker, features)
         return advice, ticker, estimated_price_change, hold_tics, model_id
         
-    def get_trading_recomendations(self, bottomline_mode = "if_available"):
+    def get_trading_recomendations(self):
+        bottomline_mode =self.bottomline_mode
         assert bottomline_mode in ["if_available", "obligatorily", "ignore"], 'bottomline_mode must be in ["if_available", "obligatorily", "ignore"]'
         print("\nget_trading_recomendations")
         print("bottomline_mode:", bottomline_mode)
