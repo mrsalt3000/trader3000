@@ -67,6 +67,7 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - DEFAULT_STOP_LOSS_RATE=${DEFAULT_STOP_LOSS_RATE}
       - IS_MAIN_AGENT=TRUE
+      - BOTTOMLINE_MODE=obligatorily #"if_available", "obligatorily", "ignore"
   trader_mono_mtlr:
     image: mrsalt3000/trader3000:latest
     volumes:
@@ -86,8 +87,9 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - DEFAULT_STOP_LOSS_RATE=${DEFAULT_STOP_LOSS_RATE}
       - IS_MAIN_AGENT=FALSE
+      - BOTTOMLINE_MODE=if_available #"if_available", "obligatorily", "ignore"
   postgres:
-    image: postgres:13                                                                                                  
+    image: postgres:17
     env_file:
       - .env
     environment:
